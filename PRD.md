@@ -136,7 +136,7 @@ ID: `FR-<EPC>-<n>`. Rujukan bagian requirement disingkat `[Req §n]`.
 
 | ID | Kebutuhan |
 |---|---|
-| FR-BC-1 | Setiap record punya barcode unik; halaman Barcode / Print Label menampilkan label dan simulasi cetak. |
+| FR-BC-1 | Setiap record punya barcode unik berkode **Code 128 nyata** (dapat dipindai kamera, bukan gambar hiasan); halaman Barcode / Print Label menampilkan label dan simulasi cetak. |
 | FR-BC-2 | Public Barcode Lookup: input kode; hasil = identifier, kategori, status, tanggal simpan, pesan kontribusi, tautan ke Public Carbon Footprint. **Dilarang:** massa, owner, faktor, rumus, estimasi per record. |
 | FR-BC-3 | Public Carbon Footprint: grafik agregat + disclosure estimasi; tanpa data per record dan tanpa data pribadi. |
 | FR-BC-4 | Pesan kontribusi wajib (EN): "Thank you for contributing to carbon emission reduction through food waste prevention." |

@@ -193,7 +193,9 @@ export function CameraScanner({
           </button>
         )}
         <span className="tiny">
-          Point the camera at the label on the food package.
+          {state === "live" && auto
+            ? "Scanning… hold the camera steady about 15–30 cm from the code."
+            : "Point the camera at the label on the food package."}
         </span>
       </div>
 

@@ -289,7 +289,7 @@ Dipasang dekat setiap angka CO₂e. Teks: "Estimate based on the configured emis
 ### 5.6 Barcode dan label (Bagian 5)
 
 - `.label-card`: border-top 5px hijau, maks 510px, padding 28px. Isi: brand, nama makanan 24px, meta (Food ID, kategori, tanggal), barcode, pesan kontribusi.
-- Barcode: batang navy tinggi 78px, gap 3px (setiap batang ke-3 memendek menjadi 88%); ID di bawahnya 11px, letter-spacing 0.24em. Barcode hanya berisi ID atau URL unik, tanpa data pribadi.
+- Barcode: batang **Code 128 asli** (render SVG via JsBarcode) warna navy, tinggi 78px, maks lebar 360px — harus benar-benar dapat dipindai kamera, bukan hiasan. ID di bawahnya 11px, letter-spacing 0.24em. Barcode hanya berisi ID atau URL unik, tanpa data pribadi.
 - Pesan kontribusi (wajib bahasa Inggris): "Thank you for contributing to carbon emission reduction through food waste prevention."
 - Halaman detail makanan untuk pengguna berwenang menambahkan di bawah pesan: `Estimated carbon contribution: 2.40 kg CO₂e` (komponen `CarbonValue`), rumus, faktor, satuan, sumber, dan disclosure.
 - Cetak: lihat aturan print di bagian 3.6.

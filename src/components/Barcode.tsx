@@ -1,7 +1,13 @@
 /**
  * Barcode / QR label (requirement §5).
  * The code encodes only a unique ID — never personal or sensitive data.
+ *
+ * The bars are a real Code 128 encoding (JsBarcode), so a phone camera using
+ * the browser Shape Detection API can actually decode them — a previous
+ * version drew decorative CSS bars that no scanner could read.
  */
+import { useEffect, useRef } from "react";
+import JsBarcode from "jsbarcode";
 import type { FoodItem } from "../lib/types";
 import { formatDate } from "../lib/format";
 import { CarbonValue, AnalyticsNote } from "./ui";
@@ -10,27 +16,32 @@ import { computeCarbon, resolveForItem, CONSUMPTION_NOTE } from "../lib/carbon";
 export const CONTRIBUTION_MESSAGE =
   "Thank you for contributing to carbon emission reduction through food waste prevention.";
 
-/** Deterministic bar widths derived from the ID so the code looks stable. */
-function barsFor(id: string) {
-  const bars: number[] = [];
-  let seed = 0;
-  for (let i = 0; i < id.length; i++) seed += id.charCodeAt(i) * (i + 3);
-  for (let i = 0; i < 58; i++) {
-    seed = (seed * 1103515245 + 12345) % 2147483648;
-    bars.push((seed % 3) + 1);
-  }
-  return bars;
-}
-
 export function Barcode({ code }: { code: string }) {
-  const bars = barsFor(code);
+  const svgRef = useRef<SVGSVGElement>(null);
+
+  useEffect(() => {
+    const svg = svgRef.current;
+    if (!svg) return;
+    try {
+      JsBarcode(svg, code, {
+        format: "CODE128",
+        displayValue: false,
+        margin: 0,
+        height: 72,
+        width: 2,
+        lineColor: "#142d3e",
+        background: "#ffffff",
+      });
+    } catch {
+      // CODE128 accepts printable ASCII; if a value still fails, leave the
+      // SVG empty — the human-readable ID below remains visible.
+      svg.replaceChildren();
+    }
+  }, [code]);
+
   return (
     <div className="barcode">
-      <div className="barcode-bars" aria-hidden>
-        {bars.map((w, i) => (
-          <i key={i} style={{ width: `${w}px`, opacity: i % 7 === 0 ? 0.75 : 1 }} />
-        ))}
-      </div>
+      <svg ref={svgRef} className="barcode-svg" role="img" aria-label={`Barcode ${code}`} />
       <div className="barcode-id">{code}</div>
       <span className="tiny" style={{ display: "block", textAlign: "center", marginTop: 4 }}>
         Encodes a unique record ID only — no personal data.
