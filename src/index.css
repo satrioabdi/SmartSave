@@ -1625,6 +1625,10 @@ textarea {
   padding: 12px;
   background: var(--white);
 }
+.camera-status {
+  color: var(--muted);
+  font-size: 11px;
+}
 
 /* ---------- Modal ---------- */
 

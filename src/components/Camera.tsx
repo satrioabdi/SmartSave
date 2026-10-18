@@ -1,10 +1,14 @@
 /**
  * Camera helpers for the prototype.
  *
- * CameraScanner — continuous barcode scanning through the browser Shape
- * Detection API (window.BarcodeDetector, Chromium). Where the API is missing
- * the preview still opens and the page falls back to manual entry; the
- * prototype never claims detection it cannot perform.
+ * CameraScanner — continuous barcode scanning with a hybrid decoder:
+ *  1. Native Shape Detection API (window.BarcodeDetector) when available.
+ *  2. JavaScript fallback (ZXing, lazy-loaded chunk) when the native API is
+ *     missing or produces no hit for ~15 s — some Android browsers expose the
+ *     API but fail to decode screen-lit codes.
+ *  3. Manual entry stays available on the page; a "Scan this frame" button
+ *     also decodes a still capture, which helps with displays/refresh bands.
+ * The prototype never claims detection it cannot perform.
  *
  * CameraCapture — one-shot photo capture for Register Food step 2. The
  * captured frame goes through the same simulated freshness check as an
@@ -19,9 +23,21 @@ interface DetectedCode {
   rawValue: string;
 }
 interface DetectorLike {
-  detect(source: HTMLVideoElement): Promise<DetectedCode[]>;
+  detect(source: CanvasImageSource): Promise<DetectedCode[]>;
 }
 type DetectorCtor = new (options?: { formats?: string[] }) => DetectorLike;
+
+interface ZxResultLike {
+  getText(): string;
+}
+interface ZxingReader {
+  reset(): void;
+  decodeFromVideoElementContinuously(
+    source: HTMLVideoElement,
+    callbackFn: (result: ZxResultLike, error?: unknown) => unknown,
+  ): Promise<void>;
+  decodeFromImageUrl(url: string): Promise<ZxResultLike>;
+}
 
 function detectorCtor(): DetectorCtor | null {
   return (window as unknown as { BarcodeDetector?: DetectorCtor })
@@ -33,7 +49,11 @@ async function openStream(): Promise<MediaStream> {
     throw new Error("unsupported");
   }
   return navigator.mediaDevices.getUserMedia({
-    video: { facingMode: { ideal: "environment" } },
+    video: {
+      facingMode: { ideal: "environment" },
+      width: { ideal: 1280 },
+      height: { ideal: 720 },
+    },
     audio: false,
   });
 }
@@ -42,7 +62,26 @@ function stopStream(stream: MediaStream | null) {
   stream?.getTracks().forEach((track) => track.stop());
 }
 
+function frameToCanvas(video: HTMLVideoElement): HTMLCanvasElement | null {
+  if (!video.videoWidth) return null;
+  const canvas = document.createElement("canvas");
+  canvas.width = video.videoWidth;
+  canvas.height = video.videoHeight;
+  canvas.getContext("2d")?.drawImage(video, 0, 0);
+  return canvas;
+}
+
 /* --------------------------- Barcode scanner --------------------------- */
+
+type DecoderMode = "idle" | "native" | "zxing-loading" | "zxing" | "unavailable";
+
+const DECODER_LABEL: Record<DecoderMode, string> = {
+  idle: "ready",
+  native: "native (BarcodeDetector)",
+  "zxing-loading": "JavaScript fallback (loading…)",
+  zxing: "JavaScript fallback",
+  unavailable: "unavailable — use manual entry",
+};
 
 export function CameraScanner({
   onDetect,
@@ -52,20 +91,49 @@ export function CameraScanner({
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const timerRef = useRef<number | null>(null);
+  const missTimerRef = useRef<number | null>(null);
+  const slowHintRef = useRef<number | null>(null);
+  const nativeRef = useRef<DetectorLike | null>(null);
+  const zxingRef = useRef<ZxingReader | null>(null);
+  const liveRef = useRef(false);
+  const hitRef = useRef(false);
+  const onDetectRef = useRef(onDetect);
+  useEffect(() => {
+    onDetectRef.current = onDetect;
+  }, [onDetect]);
+
   const [state, setState] = useState<"idle" | "starting" | "live" | "error">(
     "idle",
   );
+  const [decoder, setDecoder] = useState<DecoderMode>("idle");
   const [message, setMessage] = useState<string | null>(null);
-  // null = camera not started yet; then whether auto-decode is available.
-  const [auto, setAuto] = useState<boolean | null>(null);
+  const [slowHint, setSlowHint] = useState(false);
 
-  const halt = useCallback(() => {
+  const clearTimers = () => {
     if (timerRef.current !== null) {
       window.clearInterval(timerRef.current);
       timerRef.current = null;
     }
+    if (missTimerRef.current !== null) {
+      window.clearTimeout(missTimerRef.current);
+      missTimerRef.current = null;
+    }
+    if (slowHintRef.current !== null) {
+      window.clearTimeout(slowHintRef.current);
+      slowHintRef.current = null;
+    }
+  };
+
+  const halt = useCallback(() => {
+    clearTimers();
+    liveRef.current = false;
     stopStream(streamRef.current);
     streamRef.current = null;
+    try {
+      zxingRef.current?.reset();
+    } catch {
+      // Reader may already be stopped.
+    }
     const video = videoRef.current;
     if (video) video.srcObject = null;
   }, []);
@@ -73,14 +141,62 @@ export function CameraScanner({
   // Unmount always releases the camera.
   useEffect(() => halt, [halt]);
 
-  const stop = () => {
+  const handleHit = (value: string) => {
+    if (hitRef.current) return;
+    hitRef.current = true;
     halt();
     setState("idle");
+    setDecoder("idle");
+    onDetectRef.current(value);
+  };
+
+  const loadZxing = async (): Promise<ZxingReader> => {
+    if (zxingRef.current) return zxingRef.current;
+    const mod = await import("@zxing/library");
+    const reader = new mod.BrowserMultiFormatReader(undefined, 350) as unknown as ZxingReader;
+    zxingRef.current = reader;
+    return reader;
+  };
+
+  const startZxing = async (why: string) => {
+    setDecoder("zxing-loading");
+    try {
+      const reader = await loadZxing();
+      if (!liveRef.current) return;
+      const video = videoRef.current;
+      if (!video || !video.videoWidth) throw new Error("no video");
+      setDecoder("zxing");
+      setMessage(
+        why === "no-native"
+          ? null
+          : "Native decoding found nothing — switched to the JavaScript decoder.",
+      );
+      await reader.decodeFromVideoElementContinuously(video, (result) => {
+        const text = result?.getText?.();
+        if (!text || !liveRef.current || hitRef.current) return;
+        handleHit(text.trim());
+      });
+    } catch {
+      if (!liveRef.current) return;
+      setDecoder("unavailable");
+      setMessage(
+        "Barcode decoding could not start in this browser. Use the manual field below.",
+      );
+    }
+  };
+
+  const stopNative = () => {
+    if (timerRef.current !== null) {
+      window.clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
   };
 
   const start = async () => {
     setState("starting");
     setMessage(null);
+    setSlowHint(false);
+    hitRef.current = false;
     let stream: MediaStream;
     try {
       stream = await openStream();
@@ -105,52 +221,106 @@ export function CameraScanner({
     } catch {
       // Autoplay policies can reject play(); the preview usually still runs.
     }
+    liveRef.current = true;
     setState("live");
 
+    // Nudge after 10 s of silence so the user knows scanning is active.
+    slowHintRef.current = window.setTimeout(() => {
+      if (liveRef.current && !hitRef.current) setSlowHint(true);
+    }, 10_000);
+
+    // --- native detector ---
+    nativeRef.current = null;
     const Ctor = detectorCtor();
-    if (!Ctor) {
-      setAuto(false);
-      return;
-    }
-    let detector: DetectorLike | null = null;
-    try {
-      detector = new Ctor({
-        formats: [
-          "qr_code",
-          "code_128",
-          "code_39",
-          "ean_13",
-          "ean_8",
-          "upc_a",
-          "upc_e",
-        ],
-      });
-    } catch {
+    if (Ctor) {
       try {
-        detector = new Ctor();
+        nativeRef.current = new Ctor({
+          formats: [
+            "qr_code",
+            "code_128",
+            "code_39",
+            "ean_13",
+            "ean_8",
+            "upc_a",
+            "upc_e",
+          ],
+        });
       } catch {
-        setAuto(false);
-        return;
+        try {
+          nativeRef.current = new Ctor();
+        } catch {
+          nativeRef.current = null;
+        }
       }
     }
-    setAuto(true);
-    timerRef.current = window.setInterval(() => {
-      const v = videoRef.current;
-      if (!v || !v.videoWidth) return;
-      detector
-        ?.detect(v)
-        .then((codes) => {
-          const hit = codes.find((c) => c.rawValue?.trim());
-          if (!hit) return;
-          const value = hit.rawValue.trim();
-          halt();
-          setState("idle");
-          onDetect(value);
-        })
-        .catch(() => {
-          // Transient per-frame errors are ignored; the loop keeps running.
-        });
-    }, 400);
+
+    if (nativeRef.current) {
+      setDecoder("native");
+      timerRef.current = window.setInterval(() => {
+        const v = videoRef.current;
+        if (!v || !v.videoWidth || hitRef.current) return;
+        nativeRef.current
+          ?.detect(v)
+          .then((codes) => {
+            const hit = codes.find((c) => c.rawValue?.trim());
+            if (hit) handleHit(hit.rawValue.trim());
+          })
+          .catch(() => {
+            // Transient per-frame errors are ignored; the loop keeps running.
+          });
+      }, 350);
+      // If the native API stays silent on real codes, fall back to ZXing.
+      missTimerRef.current = window.setTimeout(() => {
+        if (liveRef.current && !hitRef.current && timerRef.current !== null) {
+          stopNative();
+          void startZxing("native-miss");
+        }
+      }, 15_000);
+    } else {
+      await startZxing("no-native");
+    }
+  };
+
+  const stop = () => {
+    halt();
+    setState("idle");
+    setDecoder("idle");
+    setMessage(null);
+    setSlowHint(false);
+  };
+
+  /** One-shot decode of the current frame — helps with screens and glare. */
+  const scanFrame = async () => {
+    const video = videoRef.current;
+    if (!video || !video.videoWidth) return;
+    const canvas = frameToCanvas(video);
+    if (!canvas) return;
+    try {
+      const codes = await nativeRef.current?.detect(canvas);
+      const hit = codes?.find((c) => c.rawValue?.trim());
+      if (hit) {
+        handleHit(hit.rawValue.trim());
+        return;
+      }
+    } catch {
+      // Fall through to the JS decoder.
+    }
+    try {
+      const reader = await loadZxing();
+      const res = await reader.decodeFromImageUrl(
+        canvas.toDataURL("image/jpeg", 0.9),
+      );
+      const text = res?.getText?.();
+      if (text?.trim()) {
+        handleHit(text.trim());
+        return;
+      }
+    } catch {
+      // No code in this frame.
+    }
+    setMessage(
+      "Could not read this frame. Move closer (15–30 cm), keep the code flat and steady, then try again.",
+    );
   };
 
   return (
@@ -175,6 +345,10 @@ export function CameraScanner({
         )}
       </div>
 
+      <div className="tiny camera-status" role="status">
+        Decoder: {DECODER_LABEL[decoder]}
+      </div>
+
       <div className="button-row">
         {state !== "live" ? (
           <button
@@ -187,14 +361,22 @@ export function CameraScanner({
             {state === "starting" ? "Starting camera…" : "Start camera"}
           </button>
         ) : (
-          <button type="button" className="button button--secondary" onClick={stop}>
-            <IconX />
-            Stop camera
-          </button>
+          <>
+            <button type="button" className="button button--secondary" onClick={stop}>
+              <IconX />
+              Stop camera
+            </button>
+            <button type="button" className="button button--ghost" onClick={scanFrame}>
+              <IconBarcode />
+              Scan this frame
+            </button>
+          </>
         )}
         <span className="tiny">
-          {state === "live" && auto
-            ? "Scanning… hold the camera steady about 15–30 cm from the code."
+          {state === "live"
+            ? slowHint
+              ? "No code detected yet — move closer (15–30 cm) and hold steady."
+              : "Hold the camera steady over the barcode."
             : "Point the camera at the label on the food package."}
         </span>
       </div>
@@ -202,14 +384,6 @@ export function CameraScanner({
       {message && (
         <div className="scan-error" role="alert">
           {message}
-        </div>
-      )}
-
-      {state === "live" && auto === false && (
-        <div className="notice">
-          This browser cannot decode barcodes from the video automatically.
-          The preview is live — type or paste the code printed on the label
-          into the field below.
         </div>
       )}
     </div>

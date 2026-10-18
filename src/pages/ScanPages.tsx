@@ -24,6 +24,12 @@ import { foodStatusVariant, formatDate, formatDateTime } from "../lib/format";
 import { formatMass } from "../lib/carbon";
 import type { FoodItem } from "../lib/types";
 
+/**
+ * Build marker shown on the page so a screenshot tells us which bundle is
+ * live (phones love to keep an old tab / cached JS around).
+ */
+export const APP_BUILD = "scan-fix-3";
+
 export function ScanBarcodePage() {
   const { session, food, navigate } = useStore();
   const [query, setQuery] = useState("");
@@ -82,10 +88,16 @@ export function ScanBarcodePage() {
 
       <div className="stack">
         <SimulationBanner>
-          The camera preview and decoding run in your browser (Shape Detection
-          API where available). Nothing is uploaded — this is a UI prototype
-          with demo records, not a backend scanner.
+          The camera preview and decoding run in your browser (native Shape
+          Detection API, with a JavaScript fallback decoder). Nothing is
+          uploaded — this is a UI prototype with demo records, not a backend
+          scanner.
         </SimulationBanner>
+
+        <div className="tiny" role="status">
+          Build: {APP_BUILD} — if this value is old, refresh the page (or open
+          it in a new tab) to load the latest deployment.
+        </div>
 
         <div className="scan-layout">
           <Panel
