@@ -8,3 +8,7 @@ dist/
 
 # local test screenshots
 WhatsApp Image*.jpeg
+
+# local downloads and test scratch folders
+GoTech-*/
+_tmp_testimg/
