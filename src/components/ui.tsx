@@ -8,6 +8,7 @@ import {
   IconBox,
   IconCheck,
   IconInfo,
+  IconPhoto,
   IconSearch,
 } from "./icons";
 
@@ -584,6 +585,85 @@ export function CheckItem({ children }: { children: ReactNode }) {
       </span>
       <span>{children}</span>
     </div>
+  );
+}
+
+/* ------------------------ PhotoThumb / PhotoModal -------------------- */
+
+/**
+ * Deterministic pastel from a string so demo "photos" (file names) get a
+ * stable, recognizable tile without shipping real images.
+ */
+function photoTone(seed: string): { bg: string; fg: string } {
+  let h = 0;
+  for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) % 360;
+  const bg = `hsl(${h} 32% 90%)`;
+  const fg = `hsl(${h} 34% 32%)`;
+  return { bg, fg };
+}
+
+/**
+ * Clickable food-photo tile (prototype demo). The seed dataset stores file
+ * names only, so tiles render a deterministic placeholder with the file name;
+ * clicking either opens the photo in a modal — the same interaction a real
+ * uploaded image would use.
+ */
+export function PhotoThumb({
+  name,
+  label,
+  size = 44,
+  onOpen,
+}: {
+  name: string;
+  /** Accessible title, e.g. the food record ID. */
+  label: string;
+  size?: number;
+  onOpen: () => void;
+}) {
+  const { bg, fg } = photoTone(name);
+  return (
+    <button
+      type="button"
+      className="photo-thumb"
+      style={{ width: size, height: size, background: bg, color: fg }}
+      title={`Open food photo — ${name}`}
+      aria-label={`Open food photo for ${label}`}
+      onClick={onOpen}
+    >
+      <IconPhoto />
+      <span>{name.replace(/\.[a-z0-9]+$/i, "").slice(0, 3).toUpperCase()}</span>
+    </button>
+  );
+}
+
+/** Photo detail dialog shown when a thumb (or photo row) is clicked. */
+export function PhotoModal({
+  name,
+  label,
+  onClose,
+}: {
+  name: string;
+  label: string;
+  onClose: () => void;
+}) {
+  const { bg, fg } = photoTone(name);
+  return (
+    <Modal title="Food photo" onClose={onClose} wide>
+      <div
+        className="photo-view"
+        style={{ background: bg, color: fg }}
+        aria-label={`Food photo preview: ${name}`}
+      >
+        <IconPhoto />
+        <div className="photo-view-name">{name}</div>
+        <div className="photo-view-sub">{label}</div>
+      </div>
+      <Notice title="Prototype demo">
+        The demo dataset stores file names only — tiles and this dialog render a
+        placeholder, not the actual image. A production build shows the uploaded
+        photo taken on the weighing scale.
+      </Notice>
+    </Modal>
   );
 }
 

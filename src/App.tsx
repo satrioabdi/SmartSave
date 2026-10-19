@@ -128,7 +128,13 @@ function Screen() {
     case "manager-users":
       return <ManagerUsersPage />;
     case "manager-inventory":
-      return <InventoryPage role="Manager" />;
+      return (
+        <InventoryPage
+          role="Manager"
+          key={route.owner ?? "all"}
+          initialOwner={route.owner}
+        />
+      );
     case "manager-categories":
       return <ManagerCategoriesPage />;
     case "manager-shelf-life":

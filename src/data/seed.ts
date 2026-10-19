@@ -73,6 +73,10 @@ interface SeedFood {
   ownerLabel: string;
   photoLabel: string;
   freshness: FoodItem["freshness"];
+  /** Demo mass-verification state (Manager ACC workflow). */
+  verified?: "Approved" | "Pending" | "Edited";
+  /** Present when the Manager edited the declared mass. */
+  editedToG?: number;
   /**
    * Demo only: pin expiry relative to page load instead of storedAt + shelf
    * rule, so the Expiry Notifications page always has a live example inside
@@ -84,25 +88,25 @@ interface SeedFood {
 
 const SEED: SeedFood[] = [
   // Expiry in 90 minutes → inside the 2-hour reminder window at page load.
-  { id: "FD-1042", name: "Banana batch A", category: "Fruit", subcategory: "Banana", massG: 2000, storedAt: iso(-30 * HOUR), status: "Stored", owner: "u-1", ownerLabel: "Nadia Prameswari", photoLabel: "banana-batch-a.jpg", freshness: "fit", expiresInMs: 90 * 60000 },
+  { id: "FD-1042", name: "Banana batch A", category: "Fruit", subcategory: "Banana", massG: 2000, storedAt: iso(-30 * HOUR), status: "Stored", owner: "u-1", ownerLabel: "Nadia Prameswari", photoLabel: "banana-batch-a.jpg", freshness: "fit", verified: "Approved", expiresInMs: 90 * 60000 },
   { id: "FD-1043", name: "Tomato crate", category: "Vegetables", subcategory: "Tomato", massG: 1500, storedAt: iso(-52 * HOUR), status: "Stored", owner: "u-1", ownerLabel: "Nadia Prameswari", photoLabel: "tomato-crate.jpg", freshness: "fit" },
   // Expired 30 minutes ago → demonstrates the "no response" follow-up branch.
-  { id: "FD-1044", name: "Cooked rice trays", category: "Prepared and Cooked Food", subcategory: "Carbohydrate", subtype: "Rice", massG: 3200, storedAt: iso(-5 * HOUR), status: "Stored", owner: "u-1", ownerLabel: "Nadia Prameswari", photoLabel: "rice-trays.jpg", freshness: "fit", expiresInMs: -30 * 60000 },
-  { id: "FD-1045", name: "Beef trimmings", category: "Prepared and Cooked Food", subcategory: "Protein", subtype: "Beef", massG: 900, storedAt: iso(-40 * HOUR), status: "Stored", owner: "u-1", ownerLabel: "Nadia Prameswari", photoLabel: "beef-trimmings.jpg", freshness: "fit" },
+  { id: "FD-1044", name: "Cooked rice trays", category: "Prepared and Cooked Food", subcategory: "Carbohydrate", subtype: "Rice", massG: 3200, storedAt: iso(-5 * HOUR), status: "Stored", owner: "u-1", ownerLabel: "Nadia Prameswari", photoLabel: "rice-trays.jpg", freshness: "fit", verified: "Pending", expiresInMs: -30 * 60000 },
+  { id: "FD-1045", name: "Beef trimmings", category: "Prepared and Cooked Food", subcategory: "Protein", subtype: "Beef", massG: 900, storedAt: iso(-40 * HOUR), status: "Stored", owner: "u-1", ownerLabel: "Nadia Prameswari", photoLabel: "beef-trimmings.jpg", freshness: "fit", verified: "Approved" },
   { id: "FD-1046", name: "Orange carton", category: "Fruit", subcategory: "Citrus Fruit", massG: 4400, storedAt: iso(-96 * HOUR), status: "Expired", owner: "u-4", ownerLabel: "Sinta Larasati", photoLabel: "orange-carton.jpg", freshness: "fit" },
   { id: "FD-1047", name: "Cow's milk pouches", category: "Beverages", subcategory: "Cow's Milk", massG: 2500, storedAt: iso(-16 * HOUR), status: "Stored", owner: "u-4", ownerLabel: "Sinta Larasati", photoLabel: "milk-pouches.jpg", freshness: "fit" },
   { id: "FD-1048", name: "Spice blend jars", category: "Spices", subcategory: "Spices", massG: 600, storedAt: iso(-10 * DAY), status: "Stored", owner: "u-5", ownerLabel: "Yoga Pratama", photoLabel: "spice-jars.jpg", freshness: "fit" },
-  { id: "FD-1049", name: "Sourdough loaves", category: "Prepared and Cooked Food", subcategory: "Carbohydrate", subtype: "Wheat and Rye", massG: 1800, storedAt: iso(-64 * HOUR), status: "Collected", owner: "u-1", ownerLabel: "Nadia Prameswari", photoLabel: "sourdough.jpg", freshness: "fit" },
-  { id: "FD-1050", name: "Leafy greens crate", category: "Vegetables", subcategory: "Cabbage and Similar", massG: 2700, storedAt: iso(-70 * HOUR), status: "Available for Donation", owner: "u-5", ownerLabel: "Yoga Pratama", photoLabel: "greens-crate.jpg", freshness: "fit" },
-  { id: "FD-1051", name: "Apple box", category: "Fruit", subcategory: "Apple", massG: 5200, storedAt: iso(-8 * DAY), status: "Donated", owner: "u-4", ownerLabel: "Sinta Larasati", photoLabel: "apple-box.jpg", freshness: "fit" },
+  { id: "FD-1049", name: "Sourdough loaves", category: "Prepared and Cooked Food", subcategory: "Carbohydrate", subtype: "Wheat and Rye", massG: 1800, storedAt: iso(-64 * HOUR), status: "Collected", owner: "u-1", ownerLabel: "Nadia Prameswari", photoLabel: "sourdough.jpg", freshness: "fit", verified: "Edited", editedToG: 1750 },
+  { id: "FD-1050", name: "Leafy greens crate", category: "Vegetables", subcategory: "Cabbage and Similar", massG: 2700, storedAt: iso(-70 * HOUR), status: "Available for Donation", owner: "u-5", ownerLabel: "Yoga Pratama", photoLabel: "greens-crate.jpg", freshness: "fit", verified: "Pending" },
+  { id: "FD-1051", name: "Apple box", category: "Fruit", subcategory: "Apple", massG: 5200, storedAt: iso(-8 * DAY), status: "Donated", owner: "u-4", ownerLabel: "Sinta Larasati", photoLabel: "apple-box.jpg", freshness: "fit", verified: "Approved" },
   { id: "FD-1052", name: "Tofu trays", category: "Prepared and Cooked Food", subcategory: "Protein", subtype: "Tofu/Processed Soy", massG: 1400, storedAt: iso(-46 * HOUR), status: "Expired", owner: "u-5", ownerLabel: "Yoga Pratama", photoLabel: "tofu-trays.jpg", freshness: "fit" },
-  { id: "FD-1053", name: "Banana box B", category: "Fruit", subcategory: "Banana", massG: 3000, storedAt: iso(-6 * HOUR), status: "Stored", owner: "u-1", ownerLabel: "Nadia Prameswari", photoLabel: "banana-box-b.jpg", freshness: "fit" },
+  { id: "FD-1053", name: "Banana box B", category: "Fruit", subcategory: "Banana", massG: 3000, storedAt: iso(-6 * HOUR), status: "Stored", owner: "u-1", ownerLabel: "Nadia Prameswari", photoLabel: "banana-box-b.jpg", freshness: "fit", verified: "Pending" },
   { id: "FD-1054", name: "Palm oil drums", category: "Palm Oil", subcategory: "Palm Oil", massG: 6000, storedAt: iso(-3 * DAY), status: "Stored", owner: "u-4", ownerLabel: "Sinta Larasati", photoLabel: "palm-oil.jpg", freshness: "fit" },
-  { id: "FD-1055", name: "Roasted coffee beans", category: "Black Coffee Beans", subcategory: "Roasted Coffee Beans", massG: 750, storedAt: iso(-20 * DAY), status: "Stored", owner: "u-5", ownerLabel: "Yoga Pratama", photoLabel: "coffee-beans.jpg", freshness: "fit" },
-  { id: "FD-1056", name: "Cassava roots", category: "Prepared and Cooked Food", subcategory: "Carbohydrate", subtype: "Cassava", massG: 2100, storedAt: iso(-90 * HOUR), status: "Available for Donation", owner: "u-1", ownerLabel: "Nadia Prameswari", photoLabel: "cassava.jpg", freshness: "fit" },
+  { id: "FD-1055", name: "Roasted coffee beans", category: "Black Coffee Beans", subcategory: "Roasted Coffee Beans", massG: 750, storedAt: iso(-20 * DAY), status: "Stored", owner: "u-5", ownerLabel: "Yoga Pratama", photoLabel: "coffee-beans.jpg", freshness: "fit", verified: "Pending" },
+  { id: "FD-1056", name: "Cassava roots", category: "Prepared and Cooked Food", subcategory: "Carbohydrate", subtype: "Cassava", massG: 2100, storedAt: iso(-90 * HOUR), status: "Available for Donation", owner: "u-1", ownerLabel: "Nadia Prameswari", photoLabel: "cassava.jpg", freshness: "fit", verified: "Edited", editedToG: 1950 },
   { id: "FD-1057", name: "Dark chocolate slabs", category: "Dark Chocolate", subcategory: "Dark Chocolate / Cocoa-based", massG: 480, storedAt: iso(-30 * DAY), status: "Stored", owner: "u-4", ownerLabel: "Sinta Larasati", photoLabel: "dark-chocolate.jpg", freshness: "fit" },
-  { id: "FD-1058", name: "Egg trays", category: "Prepared and Cooked Food", subcategory: "Protein", subtype: "Eggs", massG: 1200, storedAt: iso(-4 * HOUR), status: "Stored", owner: "u-1", ownerLabel: "Nadia Prameswari", photoLabel: "egg-trays.jpg", freshness: "fit" },
-  { id: "FD-1059", name: "Other tubers basket", category: "Prepared and Cooked Food", subcategory: "Carbohydrate", subtype: "Other Tubers", massG: 1600, storedAt: iso(-48 * HOUR), status: "Stored", owner: "u-5", ownerLabel: "Yoga Pratama", photoLabel: "tubers.jpg", freshness: "fit" },
+  { id: "FD-1058", name: "Egg trays", category: "Prepared and Cooked Food", subcategory: "Protein", subtype: "Eggs", massG: 1200, storedAt: iso(-4 * HOUR), status: "Stored", owner: "u-1", ownerLabel: "Nadia Prameswari", photoLabel: "egg-trays.jpg", freshness: "fit", verified: "Pending" },
+  { id: "FD-1059", name: "Other tubers basket", category: "Prepared and Cooked Food", subcategory: "Carbohydrate", subtype: "Other Tubers", massG: 1600, storedAt: iso(-48 * HOUR), status: "Stored", owner: "u-5", ownerLabel: "Yoga Pratama", photoLabel: "tubers.jpg", freshness: "fit", verified: "Pending" },
 ];
 
 function buildFood(): FoodItem[] {
@@ -142,6 +146,33 @@ function buildFood(): FoodItem[] {
       s.expiresInMs === undefined
         ? addDays(s.storedAt, shelf.days)
         : iso(s.expiresInMs);
+    // Mass-verification demo state. Records without `verified` predate the
+    // workflow: they keep the declared mass and show as Approved (legacy).
+    const verification: FoodItem["massVerification"] =
+      s.verified === "Pending"
+        ? {
+            status: "Pending",
+            declaredG: s.massG,
+            confirmedG: null,
+            reviewedBy: null,
+            reviewedAt: null,
+          }
+        : s.verified === "Edited"
+          ? {
+              status: "Edited",
+              declaredG: s.massG,
+              confirmedG: s.editedToG ?? s.massG,
+              reviewedBy: "Bagas Wicaksono",
+              reviewedAt: iso(-1 * DAY),
+              note: "Mass corrected against the scale photo at Manager review.",
+            }
+          : {
+              status: "Approved",
+              declaredG: s.massG,
+              confirmedG: s.massG,
+              reviewedBy: "Bagas Wicaksono",
+              reviewedAt: iso(-1 * DAY),
+            };
     return {
       id: s.id,
       barcode: `SS-${s.id.replace("FD-", "")}`,
@@ -149,7 +180,7 @@ function buildFood(): FoodItem[] {
       category: s.category,
       subcategory: s.subcategory,
       subtype: s.subtype,
-      massG: s.massG,
+      massG: verification.status === "Edited" ? (s.editedToG ?? s.massG) : s.massG,
       storedAt,
       expiresAt,
       status: s.status,
@@ -158,6 +189,7 @@ function buildFood(): FoodItem[] {
       ownerLabel: s.ownerLabel,
       photoLabel: s.photoLabel,
       freshness: s.freshness,
+      massVerification: verification,
       ruleSnapshot: { shelfLifeDays: shelf.days, ruleLabel: shelf.ruleLabel },
       factorSnapshot: {
         sourceLabel: factor.factor?.sourceLabel ?? "—",

@@ -65,7 +65,7 @@ export type Route =
   | { name: "manager-dashboard" }
   | { name: "manager-users" }
   | { name: "manager-lockers" }
-  | { name: "manager-inventory" }
+  | { name: "manager-inventory"; owner?: string }
   | { name: "manager-categories" }
   | { name: "manager-shelf-life" }
   | { name: "manager-factors" }
@@ -172,6 +172,17 @@ interface AppActions {
   decideRequest: (id: string, approve: boolean, reason?: string) => void;
   distributeDonation: (donationId: string) => void;
   collectFood: (foodId: string) => void;
+  /**
+   * Manager mass-verification decision (photo-on-scale workflow). "approve"
+   * confirms the declared mass; "edit" corrects it to `confirmedG`. Both
+   * resolve the Pending state and leave an audit entry.
+   */
+  reviewMass: (
+    foodId: string,
+    decision: "approve" | "edit",
+    confirmedG?: number,
+    note?: string,
+  ) => void;
   markNotificationsRead: () => void;
   updateShelfLife: (categoryId: string, days: number) => void;
   setToast: (msg: string | null) => void;
@@ -189,6 +200,7 @@ const noopActions: AppActions = {
   decideRequest: () => {},
   distributeDonation: () => {},
   collectFood: () => {},
+  reviewMass: () => {},
   markNotificationsRead: () => {},
   updateShelfLife: () => {},
   setToast: () => {},
@@ -326,6 +338,15 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         ownerLabel: session.name,
         photoLabel: input.photoLabel,
         freshness: input.freshness,
+        // Every new deposit enters the Manager mass-verification queue
+        // (photo-on-scale workflow) as Pending.
+        massVerification: {
+          status: "Pending",
+          declaredG: Math.round(input.massG),
+          confirmedG: null,
+          reviewedBy: null,
+          reviewedAt: null,
+        },
         ruleSnapshot: { shelfLifeDays: shelf.days, ruleLabel: shelf.ruleLabel },
         factorSnapshot: {
           sourceLabel: factor.factor?.sourceLabel ?? "—",
@@ -429,6 +450,62 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       showToast(`${item.id} marked as Collected.`);
     },
     [food, session, recordEvent, showToast],
+  );
+
+  /**
+   * Manager mass verification. Approve keeps the declared mass; edit rewrites
+   * `massG` to the confirmed value and stamps the record "Edited" so the UI
+   * can say who corrected it. Expiry is never touched — only the mass.
+   */
+  const reviewMass: AppActions["reviewMass"] = useCallback(
+    (foodId, decision, confirmedG, note) => {
+      if (!session || session.role !== "Manager") return;
+      const item = food.find((f) => f.id === foodId);
+      if (!item) return;
+      const declared = item.massVerification.declaredG;
+      const approvedG =
+        decision === "approve" ? declared : Math.max(0, Math.round(confirmedG ?? declared));
+      if (decision === "edit" && (!Number.isFinite(approvedG) || approvedG <= 0)) {
+        showToast("Enter a corrected mass greater than 0 grams.");
+        return;
+      }
+      setFood((prev) =>
+        prev.map((f) =>
+          f.id === foodId
+            ? {
+                ...f,
+                massG: approvedG,
+                massVerification: {
+                  status: decision === "approve" ? "Approved" : "Edited",
+                  declaredG: declared,
+                  confirmedG: approvedG,
+                  reviewedBy: session.name,
+                  reviewedAt: new Date().toISOString(),
+                  note:
+                    note?.trim() ||
+                    (decision === "approve"
+                      ? undefined
+                      : "Mass corrected against the scale photo at Manager review."),
+                },
+              }
+            : f,
+        ),
+      );
+      pushLog(
+        session.name,
+        decision === "approve" ? "Approved food mass" : "Edited food mass",
+        foodId,
+        decision === "approve"
+          ? `Declared ${declared.toLocaleString("en-US")} g confirmed against the scale photo.`
+          : `Mass changed from ${declared.toLocaleString("en-US")} g to ${approvedG.toLocaleString("en-US")} g after Manager review.`,
+      );
+      showToast(
+        decision === "approve"
+          ? `${foodId} mass approved — ${approvedG.toLocaleString("en-US")} g confirmed.`
+          : `${foodId} mass edited to ${approvedG.toLocaleString("en-US")} g and marked as Manager-edited.`,
+      );
+    },
+    [food, session, pushLog, showToast],
   );
 
   const createDonation: AppActions["createDonation"] = useCallback(
@@ -693,6 +770,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       decideRequest,
       distributeDonation,
       collectFood,
+      reviewMass,
       markNotificationsRead,
       updateShelfLife,
       setToast: showToast,
@@ -719,6 +797,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       decideRequest,
       distributeDonation,
       collectFood,
+      reviewMass,
       markNotificationsRead,
       updateShelfLife,
       showToast,

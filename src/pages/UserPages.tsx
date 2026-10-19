@@ -7,10 +7,14 @@ import {
   BarChart,
   CarbonValue,
   EmptyState,
+  Field,
+  Modal,
   Notice,
   PageHead,
   Panel,
   PeriodFilter,
+  PhotoModal,
+  PhotoThumb,
   PolicyBox,
   QuantityHeader,
   SafetyNotice,
@@ -312,16 +316,40 @@ function MetricCo2e({ kg, foot }: { kg: number; foot: string }) {
 
 /* ----------------------------- Inventory ------------------------------ */
 
-export function InventoryPage({ role = "User" }: { role?: "User" | "Manager" }) {
-  const { session, food, events, navigate } = useStore();
+export function InventoryPage({
+  role = "User",
+  initialOwner,
+}: {
+  role?: "User" | "Manager";
+  /** Manager entry from User and Role Management — pre-filtered to one person. */
+  initialOwner?: string;
+}) {
+  const { session, food, events, navigate, route, reviewMass, setToast } =
+    useStore();
   const [q, setQ] = useState("");
   const [status, setStatus] = useState("All");
   const [category, setCategory] = useState("All");
+  // Manager-only person filter. Seeded from the route when arriving from
+  // User and Role Management; clearable with the "All owners" option.
+  const [owner, setOwner] = useState(initialOwner ?? "All");
+  const [photo, setPhoto] = useState<FoodItem | null>(null);
+  const [editId, setEditId] = useState<string | null>(null);
+  const [editValue, setEditValue] = useState("");
+  const [editNote, setEditNote] = useState("");
 
   if (!session) return null;
+  const routeOwner =
+    route.name === "manager-inventory" && route.owner ? route.owner : undefined;
+  const activeOwner = routeOwner ?? owner;
   const base =
-    role === "Manager" ? food : food.filter((f) => f.ownerUserId === session.userId);
+    role === "Manager"
+      ? activeOwner === "All"
+        ? food
+        : food.filter((f) => f.ownerUserId === activeOwner)
+      : food.filter((f) => f.ownerUserId === session.userId);
 
+  const ownerNames = new Map(food.map((f) => [f.ownerUserId, f.ownerLabel] as const));
+  const ownerOptions = ["All", ...Array.from(new Set(food.map((f) => f.ownerUserId)))];
   const categories = ["All", ...Array.from(new Set(base.map((f) => f.category)))];
   const rows = base.filter(
     (f) =>
@@ -422,6 +450,19 @@ export function InventoryPage({ role = "User" }: { role?: "User" | "Manager" }) 
               <option key={c}>{c}</option>
             ))}
           </select>
+          {role === "Manager" && (
+            <select
+              value={activeOwner}
+              onChange={(e) => setOwner(e.target.value)}
+              aria-label="Owner filter"
+            >
+              {ownerOptions.map((o) => (
+                <option key={o} value={o}>
+                  {o === "All" ? "All owners" : ownerNames.get(o) ?? o}
+                </option>
+              ))}
+            </select>
+          )}
           <span className="tiny">
             {rows.length} of {base.length} records
           </span>
@@ -430,28 +471,52 @@ export function InventoryPage({ role = "User" }: { role?: "User" | "Manager" }) 
         <TableWrap>
           <thead>
             <tr>
+              <th scope="col">Photo</th>
               <th scope="col">Food</th>
               <th scope="col">Category / Subcategory</th>
               <th scope="col">Status</th>
+              {role === "Manager" && <th scope="col">Owner</th>}
               <th scope="col">Locker</th>
               <th scope="col">Stored At</th>
               <th scope="col">Expiration Date &amp; Time</th>
               <QuantityHeader />
+              {role === "Manager" && <th scope="col">Mass check</th>}
               <th scope="col" style={{ textAlign: "right" }}>Actions</th>
             </tr>
           </thead>
           <tbody>
             {rows.length === 0 && (
-              <TableEmpty colSpan={9} text="No records match these filters." />
+              <TableEmpty colSpan={role === "Manager" ? 12 : 10} text="No records match these filters." />
             )}
-            {rows.map((f) => (
-              <tr key={f.id}>
+            {rows.map((f) => {
+              const verification = f.massVerification;
+              const edited = verification.status === "Edited";
+              return (
+            <tr
+              key={f.id}
+              className={role === "Manager" ? "row-click" : undefined}
+              onClick={role === "Manager" ? () => openDetail(navigate, f.id) : undefined}
+            >
+                <td>
+                  {f.photoLabel ? (
+                    <PhotoThumb
+                      name={f.photoLabel}
+                      label={`${f.name} (${f.id})`}
+                      onOpen={() => setPhoto(f)}
+                    />
+                  ) : (
+                    <span className="tiny">—</span>
+                  )}
+                </td>
                 <td>
                   <button
                     type="button"
                     className="cell-strong"
                     style={{ background: "none", border: "none", padding: 0, cursor: "pointer", textAlign: "left" }}
-                    onClick={() => openDetail(navigate, f.id)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      openDetail(navigate, f.id);
+                    }}
                   >
                     {f.name}
                   </button>
@@ -482,6 +547,9 @@ export function InventoryPage({ role = "User" }: { role?: "User" | "Manager" }) 
                     }
                   />
                 </td>
+                {role === "Manager" && (
+                  <td className="num-col">{f.ownerLabel}</td>
+                )}
                 <td>
                   {f.compartmentLabel ?? "—"}
                   {f.compartmentLabel && (
@@ -493,12 +561,53 @@ export function InventoryPage({ role = "User" }: { role?: "User" | "Manager" }) 
                   {formatDateTime(f.expiresAt)}
                   <span className="cell-sub">auto — not editable</span>
                 </td>
-                <td className="num-col">{formatMass(f.massG)}</td>
+                <td className="num-col">
+                  {formatMass(f.massG)}
+                  {edited && (
+                    <span className="cell-sub" style={{ color: "var(--amber)" }}>
+                      Edited by management (was {verification.declaredG.toLocaleString("en-US")} g)
+                    </span>
+                  )}
+                </td>
                 <td className="num-col">
                   <ItemCarbonCell item={f} events={events} />
                 </td>
-                <td>
+                {role === "Manager" && (
+                  <td>
+                    {verification.status === "Pending" ? (
+                      <Badge variant="warning">Pending review</Badge>
+                    ) : verification.status === "Approved" ? (
+                      <Badge variant="success">Approved by management</Badge>
+                    ) : (
+                      <Badge variant="info">Edited by management</Badge>
+                    )}
+                  </td>
+                )}
+                <td onClick={(e) => e.stopPropagation()}>
                   <div className="table-actions">
+                    {role === "Manager" && verification.status === "Pending" && (
+                      <>
+                        <button
+                          type="button"
+                          className="button button--primary button--sm"
+                          title="Confirm the declared mass matches the scale photo"
+                          onClick={() => reviewMass(f.id, "approve")}
+                        >
+                          Approve
+                        </button>
+                        <button
+                          type="button"
+                          className="button button--secondary button--sm"
+                          onClick={() => {
+                            setEditId(f.id);
+                            setEditValue(String(f.massG));
+                            setEditNote("");
+                          }}
+                        >
+                          Edit mass
+                        </button>
+                      </>
+                    )}
                     <button
                       type="button"
                       className="button button--secondary button--sm"
@@ -516,9 +625,20 @@ export function InventoryPage({ role = "User" }: { role?: "User" | "Manager" }) 
                   </div>
                 </td>
               </tr>
-            ))}
+            );
+            })}
           </tbody>
         </TableWrap>
+
+        {role === "Manager" && (
+          <Notice title="Mass verification workflow">
+            Click a photo to open it. The photo must show the food on the
+            weighing scale — approve the declared mass, or edit it to the scale
+            reading. Edited records are marked <strong>Edited by
+            management</strong> with the original value kept, and every decision
+            is written to the Activity Logs.
+          </Notice>
+        )}
 
         <p className="tiny">
           Expiration Date &amp; Time is calculated automatically from the
@@ -526,6 +646,68 @@ export function InventoryPage({ role = "User" }: { role?: "User" | "Manager" }) 
           a Manager can edit or extend it.
         </p>
       </div>
+
+      {photo && (
+        <PhotoModal
+          name={photo.photoLabel ?? "photo"}
+          label={`${photo.name} · ${photo.id} · declared ${formatMass(photo.massG)}`}
+          onClose={() => setPhoto(null)}
+        />
+      )}
+
+      {editId && (
+        <Modal
+          title={`Edit mass — ${editId}`}
+          onClose={() => setEditId(null)}
+          actions={
+            <>
+              <button
+                type="button"
+                className="button button--primary"
+                onClick={() => {
+                  const n = Number(editValue);
+                  if (!Number.isFinite(n) || n <= 0) {
+                    setToast("Enter a corrected mass greater than 0 grams.");
+                    return;
+                  }
+                  reviewMass(editId, "edit", Math.round(n), editNote.trim() || undefined);
+                  setEditId(null);
+                }}
+              >
+                Save correction
+              </button>
+              <button
+                type="button"
+                className="button button--ghost"
+                onClick={() => setEditId(null)}
+              >
+                Cancel
+              </button>
+            </>
+          }
+        >
+          <div className="stack stack--sm">
+            <Notice title="Manager correction">
+              The record keeps its original declared value and is marked
+              “Edited by management”. This note is shown to the owner and logged.
+            </Notice>
+            <Field label="Corrected mass (g)" hint="Take the value from the weighing scale in the photo">
+              <input
+                inputMode="numeric"
+                value={editValue}
+                onChange={(e) => setEditValue(e.target.value.replace(/\D/g, ""))}
+              />
+            </Field>
+            <Field label="Reason (optional)" hint="e.g. Scale photo shows 1,950 g, declared 2,100 g">
+              <textarea
+                value={editNote}
+                onChange={(e) => setEditNote(e.target.value)}
+                placeholder="Why is the declared mass being corrected?"
+              />
+            </Field>
+          </div>
+        </Modal>
+      )}
     </AppShell>
   );
 }
@@ -537,6 +719,9 @@ export function FoodDetailPage({ role = "User" }: { role?: "User" | "Manager" })
   const route = useStore().route;
   const id = route.name === "food-detail" ? route.id : "";
   const item = food.find((f) => f.id === id);
+  // Photo dialog state lives before the early returns so the hook order stays
+  // stable across the "not found" and "access denied" renders.
+  const [photoOpen, setPhotoOpen] = useState(false);
 
   if (!session) return null;
   if (!item) {
@@ -692,7 +877,23 @@ export function FoodDetailPage({ role = "User" }: { role?: "User" | "Manager" })
                     },
                     { label: "Created / Stored At", value: formatDateTime(item.storedAt) },
                     { label: "Shelf-life rule applied", value: item.ruleSnapshot.ruleLabel },
-                    { label: "Photo", value: item.photoLabel ?? "—" },
+                    {
+                      label: "Photo",
+                      value: item.photoLabel ? (
+                        <PhotoThumb
+                          name={item.photoLabel}
+                          label={`${item.name} (${item.id})`}
+                          size={56}
+                          onOpen={() => setPhotoOpen(true)}
+                        />
+                      ) : (
+                        "—"
+                      ),
+                    },
+                    {
+                      label: "Mass verification",
+                      value: <MassVerificationLine item={item} />,
+                    },
                   ]}
                 />
                 <PolicyBox>
@@ -823,7 +1024,48 @@ export function FoodDetailPage({ role = "User" }: { role?: "User" | "Manager" })
           </div>
         </div>
       </div>
+
+      {photoOpen && item.photoLabel && (
+        <PhotoModal
+          name={item.photoLabel}
+          label={`${item.name} · ${item.id} · declared ${formatMass(item.massG)}`}
+          onClose={() => setPhotoOpen(false)}
+        />
+      )}
     </AppShell>
+  );
+}
+
+/**
+ * One-line mass-verification status for the Food Detail summary list. When a
+ * Manager corrected the mass, the original declared value is kept visible so
+ * the change is always attributable.
+ */
+function MassVerificationLine({ item }: { item: FoodItem }) {
+  const v = item.massVerification;
+  if (v.status === "Pending") {
+    return <Badge variant="warning">Pending Manager review</Badge>;
+  }
+  if (v.status === "Approved") {
+    return (
+      <span>
+        <Badge variant="success">Approved by management</Badge>
+        <span className="cell-sub">
+          {v.reviewedBy} · {v.reviewedAt ? formatDateTime(v.reviewedAt) : "—"}
+        </span>
+      </span>
+    );
+  }
+  return (
+    <span>
+      <Badge variant="info">Edited by management</Badge>
+      <span className="cell-sub">
+        Declared {v.declaredG.toLocaleString("en-US")} g → confirmed{" "}
+        {(v.confirmedG ?? v.declaredG).toLocaleString("en-US")} g
+        {v.reviewedBy ? ` · ${v.reviewedBy}` : ""}
+        {v.note ? ` · ${v.note}` : ""}
+      </span>
+    </span>
   );
 }
 

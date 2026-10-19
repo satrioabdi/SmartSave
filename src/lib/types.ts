@@ -121,6 +121,23 @@ export interface FoodItem {
   ownerLabel: string;
   photoLabel?: string;
   freshness: "pending" | "fit" | "rejected";
+  /**
+   * Mass-verification workflow (prototype demo): the User's photo is expected
+   * to show the food on a weighing scale, so a Manager can compare the typed
+   * mass against the scale reading. `pending` until a Manager acts.
+   */
+  massVerification: {
+    /** Pending | Approved | Edited — mirrors the Manager decision. */
+    status: "Pending" | "Approved" | "Edited";
+    /** Grams entered by the User at registration. */
+    declaredG: number;
+    /** Grams confirmed by Manager after review (set on approve/edit). */
+    confirmedG: number | null;
+    /** Who acted and when; null while pending. */
+    reviewedBy: string | null;
+    reviewedAt: string | null;
+    note?: string;
+  };
   /** Snapshot of the shelf-life rule applied at registration (§9). */
   ruleSnapshot: { shelfLifeDays: number; ruleLabel: string };
   /** Snapshot of the factor used, kept for historical rows (§7). */

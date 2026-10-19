@@ -60,7 +60,8 @@ import {
   compartmentOccupants,
   remainingCapacity,
 } from "../data/compartments";
-import type { CompartmentStatus, Period } from "../lib/types";
+import type { CompartmentStatus, Period, Account } from "../lib/types";
+import type { Route } from "../lib/store";
 
 /* ---------------------------- Dashboard ------------------------------ */
 
@@ -274,7 +275,8 @@ export function ManagerDashboardPage() {
 /* ------------------------ User and Role Management -------------------- */
 
 export function ManagerUsersPage() {
-  const { accounts, food, requests, donations, session } = useStore();
+  const { accounts, food, requests, donations, events, session, navigate } =
+    useStore();
   const [q, setQ] = useState("");
   const [role, setRole] = useState("All");
 
@@ -286,12 +288,27 @@ export function ManagerUsersPage() {
         a.email.toLowerCase().includes(q.toLowerCase())),
   );
 
+  // Per-user mass and qualified CO₂e totals (§8: mass and CO₂e shown together;
+  // only qualified events count — registration alone is never an emission).
+  const totalsFor = (a: Account) => {
+    const owned = food.filter((f) => f.ownerUserId === a.id);
+    const ownedIds = new Set(owned.map((f) => f.id));
+    const mass = owned.reduce((s, f) => s + f.massG, 0);
+    const co2e = events
+      .filter((e) => ownedIds.has(e.foodId) && e.co2eKg !== null)
+      .reduce((s, e) => s + (e.co2eKg ?? 0), 0);
+    const pending = owned.filter(
+      (f) => f.massVerification.status === "Pending",
+    ).length;
+    return { records: owned.length, mass, co2e, pending };
+  };
+
   return (
     <AppShell title="User and Role Management">
       <PageHead
         eyebrow="Role: Manager"
         title="User and Role Management"
-        description="Accounts registered in this prototype, grouped by role. Role names are User, Manager and Green Community."
+        description="Accounts registered in this prototype, grouped by role, with each User's total registered mass and qualified CO₂e impact."
       />
 
       <div className="stack">
@@ -326,15 +343,17 @@ export function ManagerUsersPage() {
               <th scope="col">Organization</th>
               <th scope="col">Joined</th>
               <th scope="col">Records</th>
-              <th scope="col">Notes</th>
+              <QuantityHeader />
+              <th scope="col" style={{ textAlign: "right" }}>Action</th>
             </tr>
           </thead>
           <tbody>
-            {rows.length === 0 && <TableEmpty colSpan={6} text="No accounts match this filter." />}
+            {rows.length === 0 && <TableEmpty colSpan={8} text="No accounts match this filter." />}
             {rows.map((a) => {
               const owned = food.filter((f) => f.ownerUserId === a.id).length;
               const reqs = requests.filter((r) => r.submittedBy === a.name).length;
               const dons = donations.filter((d) => d.createdBy === a.name).length;
+              const totals = totalsFor(a);
               const self = session?.userId === a.id;
               return (
                 <tr key={a.id}>
@@ -352,19 +371,59 @@ export function ManagerUsersPage() {
                     {a.role === "Green Community" && `${reqs} requests`}
                     {a.role === "Manager" && "Operations"}
                   </td>
-                  <td className="tiny">
-                    {a.role === "Manager"
-                      ? "Can configure rules, review requests and record distribution."
-                      : a.role === "Green Community"
-                        ? "Can request donations and view received history."
-                        : "Can register food, donate and collect."}
-                  </td>
+                  {a.role === "User" ? (
+                    <>
+                      <td className="num-col cell-strong num">
+                        {totals.mass.toLocaleString("en-US")} g
+                      </td>
+                      <td className="num-col">
+                        {totals.co2e > 0 ? (
+                          <CarbonValue value={{ kind: "value", kg: Math.round(totals.co2e * 100) / 100 }} />
+                        ) : (
+                          <Badge variant="neutral">No qualified event yet</Badge>
+                        )}
+                      </td>
+                      <td>
+                        <div className="table-actions">
+                          {totals.pending > 0 && (
+                            <Badge variant="warning">{totals.pending} to verify</Badge>
+                          )}
+                          <button
+                            type="button"
+                            className="button button--secondary button--sm"
+                            onClick={() =>
+                              navigate({
+                                name: "manager-inventory",
+                                owner: a.id,
+                              } as Route)
+                            }
+                          >
+                            View inventory
+                          </button>
+                        </div>
+                      </td>
+                    </>
+                  ) : (
+                    <>
+                      <td className="num-col tiny">—</td>
+                      <td className="num-col tiny">—</td>
+                      <td className="num-col tiny">
+                        {a.role === "Green Community" ? "Receives donations" : "Sees all records"}
+                      </td>
+                    </>
+                  )}
                 </tr>
               );
             })}
           </tbody>
         </TableWrap>
 
+        <Notice title="Mass and CO₂e rules">
+          Total mass sums every record the User registered (their declared
+          weights, corrected where a Manager edited them). Estimated CO₂e counts
+          qualified events only — collection or a completed donation — and never
+          registration alone.
+        </Notice>
         <Notice title="Role boundaries are enforced in navigation">
           Opening a page outside your role shows Access Denied. Managers can also
           inspect food records read-only, but expiry is never editable by any role.

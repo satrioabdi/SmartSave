@@ -2202,3 +2202,77 @@ textarea {
     flex: 1;
   }
 }
+
+/* ---------------------- Food photo tiles & modal ---------------------- */
+
+.photo-thumb {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  cursor: zoom-in;
+  padding: 4px 6px;
+  flex-shrink: 0;
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+}
+.photo-thumb svg {
+  width: 16px;
+  height: 16px;
+}
+.photo-thumb span {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+.photo-thumb:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--card-shadow);
+}
+
+.photo-view {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 240px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--line);
+  padding: 24px;
+  text-align: center;
+}
+.photo-view svg {
+  width: 56px;
+  height: 56px;
+  opacity: 0.75;
+}
+.photo-view-name {
+  font-weight: 700;
+  font-size: 15px;
+}
+.photo-view-sub {
+  font-size: 12px;
+  opacity: 0.8;
+}
+
+/* --------------------------- Clickable rows --------------------------- */
+
+.row-click {
+  cursor: pointer;
+}
+.row-click:hover .cell-strong {
+  text-decoration: underline;
+}
+
+/* ------------------------ Mass verification chips --------------------- */
+
+.verify-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 600;
+}

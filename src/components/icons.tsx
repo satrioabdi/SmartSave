@@ -224,3 +224,20 @@ export const IconFile = (p: P) => (
     <path d="M13.5 3.5V8H18" />
   </svg>
 );
+
+export const IconPhoto = (p: P) => (
+  <svg {...base(p)}>
+    <rect x="3.5" y="5" width="17" height="14" rx="2" />
+    <circle cx="9" cy="10" r="1.8" />
+    <path d="m3.5 16.5 4.5-4 4 3.5 3.5-3 5 4.5" />
+  </svg>
+);
+
+export const IconScale = (p: P) => (
+  <svg {...base(p)}>
+    <rect x="4.5" y="14" width="15" height="6.5" rx="1.5" />
+    <path d="M7 20.5v-3M10 20.5v-3M13 20.5v-3M16 20.5v-3" />
+    <path d="M12 14V8.5" />
+    <path d="M8.5 5h7l-2 3.5h-3z" />
+  </svg>
+);

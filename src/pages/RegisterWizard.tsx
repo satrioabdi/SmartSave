@@ -580,6 +580,14 @@ export function RegisterFoodPage() {
                   <label className="eyebrow" htmlFor="wizard-photo">
                     Food photo
                   </label>
+                  <PolicyBox>
+                    <strong>Photo instruction:</strong> the uploaded photo must
+                    show the food placed <strong>on the weighing scale</strong>,
+                    with the scale display readable. Managers use this photo to
+                    verify the mass you enter — an unclear photo or a mass that
+                    does not match the scale reading will be corrected or
+                    rejected during review.
+                  </PolicyBox>
                   <input
                     id="wizard-photo"
                     ref={fileRef}
