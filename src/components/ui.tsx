@@ -1,4 +1,5 @@
 /** Shared UI primitives — badges, notices, metric cards, tables, charts. */
+import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import { ANALYTICS_NOTE, carbonLabel, formatCo2e } from "../lib/carbon";
 import type { BadgeVariant } from "../lib/format";
@@ -8,7 +9,6 @@ import {
   IconBox,
   IconCheck,
   IconInfo,
-  IconPhoto,
   IconSearch,
 } from "./icons";
 
@@ -602,11 +602,112 @@ function photoTone(seed: string): { bg: string; fg: string } {
   return { bg, fg };
 }
 
+/** First keyword hit decides the fallback illustration emoji. */
+const FOOD_EMOJI: Array<[RegExp, string]> = [
+  [/banana/i, "🍌"],
+  [/tomato/i, "🍅"],
+  [/rice/i, "🍚"],
+  [/beef/i, "🥩"],
+  [/orange|citrus/i, "🍊"],
+  [/milk/i, "🥛"],
+  [/spice/i, "🧂"],
+  [/sourdough|bread|rye|wheat/i, "🍞"],
+  [/greens|cabbage|leafy|salad/i, "🥬"],
+  [/apple/i, "🍎"],
+  [/tofu|soy/i, "🧈"],
+  [/palm.?oil|oil/i, "🛢️"],
+  [/coffee/i, "☕"],
+  [/cassava|potato/i, "🥔"],
+  [/tuber|yam/i, "🍠"],
+  [/egg/i, "🥚"],
+  [/chocolate|cocoa/i, "🍫"],
+  [/corn|maize/i, "🌽"],
+  [/fish/i, "🐟"],
+  [/shrimp|crustacean/i, "🦐"],
+  [/cheese/i, "🧀"],
+  [/pork/i, "🍖"],
+  [/poultry|chicken/i, "🍗"],
+  [/lamb|mutton|goat/i, "🐑"],
+  [/expired|rotten|basi/i, "🥀"],
+  [/fresh/i, "🥗"],
+];
+
+function foodEmoji(name: string): string {
+  for (const [re, emoji] of FOOD_EMOJI) if (re.test(name)) return emoji;
+  return "🍱";
+}
+
 /**
- * Clickable food-photo tile (prototype demo). The seed dataset stores file
- * names only, so tiles render a deterministic placeholder with the file name;
- * clicking either opens the photo in a modal — the same interaction a real
- * uploaded image would use.
+ * Manifest of the demo illustrations shipped in public/photos/. Fetched once;
+ * resolves null when it cannot be read (e.g. a file:// preview) so the
+ * component still tries the image files directly.
+ */
+let photoManifest: Promise<Set<string> | null> | null = null;
+function loadPhotoManifest(): Promise<Set<string> | null> {
+  if (!photoManifest) {
+    photoManifest = fetch("photos/photos.json")
+      .then((r) => (r.ok ? r.json() : []))
+      .then((list: string[]) => new Set<string>(list))
+      .catch(() => null);
+  }
+  return photoManifest;
+}
+
+/**
+ * Food photo media. Resolution order:
+ *   1. a real image at photos/<file name as uploaded> — drop any jpg/png into
+ *      public/photos/ under the record's name and it is shown here;
+ *   2. the generated demo illustration photos/<name>.svg (food on a scale);
+ *   3. a deterministic emoji tile as the last-resort placeholder.
+ */
+export function FoodPhoto({ name, className }: { name: string; className?: string }) {
+  const [src, setSrc] = useState<string | null>(null);
+  const [broken, setBroken] = useState(false);
+  const { bg, fg } = photoTone(name);
+
+  useEffect(() => {
+    let live = true;
+    setBroken(false);
+    const base = name.replace(/\.[a-z0-9]+$/i, "");
+    const candidates = [`${name}`, `${base}.svg`];
+    loadPhotoManifest().then((set) => {
+      if (!live) return;
+      // Unknown manifest (fetch failed): still try the exact file, then the
+      // illustration — onError degrades to the emoji tile.
+      const found =
+        set === null ? candidates[0] : candidates.find((c) => set.has(c));
+      setSrc(found ? `photos/${found}` : null);
+    });
+    return () => {
+      live = false;
+    };
+  }, [name]);
+
+  if (!src || broken) {
+    return (
+      <span
+        className={`photo-illus${className ? ` ${className}` : ""}`}
+        style={{ background: bg, color: fg }}
+        role="img"
+        aria-label={`Illustration for ${name}`}
+      >
+        {foodEmoji(name)}
+      </span>
+    );
+  }
+  return (
+    <img
+      className={`photo-img${className ? ` ${className}` : ""}`}
+      src={src}
+      alt={`Food photo ${name}`}
+      onError={() => setBroken(true)}
+    />
+  );
+}
+
+/**
+ * Clickable food-photo tile. Shows the record's photo (real image, demo
+ * illustration or emoji placeholder) and opens the photo dialog on click.
  */
 export function PhotoThumb({
   name,
@@ -620,18 +721,16 @@ export function PhotoThumb({
   size?: number;
   onOpen: () => void;
 }) {
-  const { bg, fg } = photoTone(name);
   return (
     <button
       type="button"
       className="photo-thumb"
-      style={{ width: size, height: size, background: bg, color: fg }}
+      style={{ width: size, height: size }}
       title={`Open food photo — ${name}`}
       aria-label={`Open food photo for ${label}`}
       onClick={onOpen}
     >
-      <IconPhoto />
-      <span>{name.replace(/\.[a-z0-9]+$/i, "").slice(0, 3).toUpperCase()}</span>
+      <FoodPhoto name={name} />
     </button>
   );
 }
@@ -646,22 +745,18 @@ export function PhotoModal({
   label: string;
   onClose: () => void;
 }) {
-  const { bg, fg } = photoTone(name);
   return (
     <Modal title="Food photo" onClose={onClose} wide>
-      <div
-        className="photo-view"
-        style={{ background: bg, color: fg }}
-        aria-label={`Food photo preview: ${name}`}
-      >
-        <IconPhoto />
+      <div className="photo-view" aria-label={`Food photo preview: ${name}`}>
+        <FoodPhoto name={name} className="photo-view-media" />
         <div className="photo-view-name">{name}</div>
         <div className="photo-view-sub">{label}</div>
       </div>
       <Notice title="Prototype demo">
-        The demo dataset stores file names only — tiles and this dialog render a
-        placeholder, not the actual image. A production build shows the uploaded
-        photo taken on the weighing scale.
+        Demo records show a generated illustration of the food on the weighing
+        scale. To display a real photo, place the image file in
+        public/photos/ under the record's file name — it is then used instead
+        of the illustration.
       </Notice>
     </Modal>
   );
