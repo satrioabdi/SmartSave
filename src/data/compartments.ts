@@ -86,10 +86,12 @@ export function compartmentBlockReason(
 export const SEED_COMPARTMENTS: VirtualCompartment[] = [
   { id: "A-01", hub: HUB_LABEL, category: "Fruit", capacityG: 5000, temperatureC: 4.1, status: "Available" },
   { id: "A-02", hub: HUB_LABEL, category: "Fruit", capacityG: 8000, temperatureC: 4.0, status: "Available" },
+  { id: "A-03", hub: HUB_LABEL, category: "Fruit", capacityG: 8000, temperatureC: 4.0, status: "Available" },
   { id: "B-01", hub: HUB_LABEL, category: "Vegetables", capacityG: 6000, temperatureC: 4.2, status: "Available" },
   { id: "B-02", hub: HUB_LABEL, category: "Vegetables", capacityG: 3000, temperatureC: 4.0, status: "Available" },
   { id: "C-01", hub: HUB_LABEL, category: "Prepared and Cooked Food", capacityG: 10000, temperatureC: 3.5, status: "Available" },
   { id: "C-02", hub: HUB_LABEL, category: "Prepared and Cooked Food", capacityG: 4000, temperatureC: 3.5, status: "Maintenance" },
+  { id: "C-03", hub: HUB_LABEL, category: "Prepared and Cooked Food", capacityG: 10000, temperatureC: 3.5, status: "Available" },
   { id: "D-01", hub: HUB_LABEL, category: "Beverages", capacityG: 6000, temperatureC: 4.0, status: "Available" },
   { id: "D-02", hub: HUB_LABEL, category: "Spices", capacityG: 3000, temperatureC: null, status: "Available" },
   { id: "E-01", hub: HUB_LABEL, category: "Palm Oil", capacityG: 10000, temperatureC: null, status: "Available" },
