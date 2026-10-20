@@ -11,4 +11,6 @@ WhatsApp Image*.jpeg
 
 # local downloads and test scratch folders
 GoTech-*/
+GoTech_*.xlsx
+~$*.xlsx
 _tmp_testimg/
