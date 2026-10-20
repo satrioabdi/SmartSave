@@ -1,5 +1,5 @@
 /** Shared UI primitives — badges, notices, metric cards, tables, charts. */
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import { ANALYTICS_NOTE, carbonLabel, formatCo2e } from "../lib/carbon";
 import type { BadgeVariant } from "../lib/format";
@@ -637,20 +637,9 @@ function foodEmoji(name: string): string {
   return "🍱";
 }
 
-/**
- * Manifest of the demo illustrations shipped in public/photos/. Fetched once;
- * resolves null when it cannot be read (e.g. a file:// preview) so the
- * component still tries the image files directly.
- */
-let photoManifest: Promise<Set<string> | null> | null = null;
-function loadPhotoManifest(): Promise<Set<string> | null> {
-  if (!photoManifest) {
-    photoManifest = fetch("photos/photos.json")
-      .then((r) => (r.ok ? r.json() : []))
-      .then((list: string[]) => new Set<string>(list))
-      .catch(() => null);
-  }
-  return photoManifest;
+/** Absolute URL for a photo file, honoring the deploy base path. */
+function photoUrl(file: string): string {
+  return `${import.meta.env.BASE_URL}photos/${file}`;
 }
 
 /**
@@ -660,6 +649,9 @@ function loadPhotoManifest(): Promise<Set<string> | null> {
  *      public/photos/ under the record's name and it is shown here;
  *   3. the generated demo illustration photos/<name>.svg (food on a scale);
  *   4. a deterministic emoji tile as the last-resort placeholder.
+ *
+ * The chain is sequential: each failed image load advances to the next
+ * candidate, so no manifest is required and any deploy base path works.
  */
 export function FoodPhoto({
   name,
@@ -671,35 +663,19 @@ export function FoodPhoto({
   dataUrl?: string;
   className?: string;
 }) {
-  const [src, setSrc] = useState<string | null>(null);
-  const [broken, setBroken] = useState(false);
   const { bg, fg } = photoTone(name);
 
-  useEffect(() => {
-    let live = true;
-    setBroken(false);
-    if (dataUrl) {
-      setSrc(dataUrl);
-      return () => {
-        live = false;
-      };
-    }
-    const base = name.replace(/\.[a-z0-9]+$/i, "");
-    const candidates = [`${name}`, `${base}.svg`];
-    loadPhotoManifest().then((set) => {
-      if (!live) return;
-      // Unknown manifest (fetch failed): still try the exact file, then the
-      // illustration — onError degrades to the emoji tile.
-      const found =
-        set === null ? candidates[0] : candidates.find((c) => set.has(c));
-      setSrc(found ? `photos/${found}` : null);
-    });
-    return () => {
-      live = false;
-    };
-  }, [name, dataUrl]);
+  // The fallback chain, rebuilt only when the record's photo changes.
+  const base = name.replace(/\.[a-z0-9]+$/i, "");
+  const chain = useMemo(
+    () => (dataUrl ? [dataUrl] : [photoUrl(name), photoUrl(`${base}.svg`)]),
+    [dataUrl, name, base],
+  );
+  const [idx, setIdx] = useState(0);
+  useEffect(() => setIdx(0), [chain]);
 
-  if (!src || broken) {
+  const src = chain[idx] ?? null;
+  if (!src) {
     return (
       <span
         className={`photo-illus${className ? ` ${className}` : ""}`}
@@ -716,7 +692,7 @@ export function FoodPhoto({
       className={`photo-img${className ? ` ${className}` : ""}`}
       src={src}
       alt={`Food photo ${name}`}
-      onError={() => setBroken(true)}
+      onError={() => setIdx((i) => i + 1)}
     />
   );
 }
