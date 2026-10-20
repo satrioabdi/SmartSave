@@ -125,8 +125,13 @@ function buildFood(): FoodItem[] {
   const lockerFor = (s: SeedFood): { compartmentId?: string; compartmentLabel?: string } => {
     const holding = ["Stored", "Available for Donation", "Expired"].includes(s.status);
     if (!holding) return {};
+    // Only genuinely usable compartments — a record never starts out in a
+    // Maintenance or Offline locker (those stay empty as negative examples).
     const candidates = SEED_COMPARTMENTS.filter(
-      (c) => c.category === s.category && free.get(c.id)! >= s.massG,
+      (c) =>
+        c.status === "Available" &&
+        c.category === s.category &&
+        free.get(c.id)! >= s.massG,
     );
     if (candidates.length === 0) return {};
     candidates.sort((a, b) => {

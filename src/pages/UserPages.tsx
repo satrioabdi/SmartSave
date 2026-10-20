@@ -324,7 +324,7 @@ export function InventoryPage({
   /** Manager entry from User and Role Management — pre-filtered to one person. */
   initialOwner?: string;
 }) {
-  const { session, food, events, navigate, reviewMass, setToast } =
+  const { session, food, events, navigate, reviewMass, cancelMassReview, setToast } =
     useStore();
   const [q, setQ] = useState("");
   const [status, setStatus] = useState("All");
@@ -607,6 +607,16 @@ export function InventoryPage({
                         </button>
                       </>
                     )}
+                    {role === "Manager" && verification.status !== "Pending" && (
+                      <button
+                        type="button"
+                        className="button button--ghost button--sm"
+                        title="Cancel the recorded decision — the record returns to Pending with the declared mass restored"
+                        onClick={() => cancelMassReview(f.id)}
+                      >
+                        Cancel
+                      </button>
+                    )}
                     <button
                       type="button"
                       className="button button--secondary button--sm"
@@ -635,7 +645,10 @@ export function InventoryPage({
             weighing scale — approve the declared mass, or edit it to the scale
             reading. Edited records are marked <strong>Edited by
             management</strong> with the original value kept, and every decision
-            is written to the Activity Logs.
+            is written to the Activity Logs. A recorded decision can be
+            withdrawn with <strong>Cancel</strong> — the record returns to
+            Pending with the declared mass restored, so an accidental click is
+            never final.
           </Notice>
         )}
 

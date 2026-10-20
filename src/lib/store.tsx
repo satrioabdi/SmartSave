@@ -188,6 +188,12 @@ interface AppActions {
     confirmedG?: number,
     note?: string,
   ) => void;
+  /**
+   * Manager cancels a recorded mass decision (approve or edit) so an
+   * accidental confirmation can be corrected. The record returns to Pending
+   * with the declared mass restored; the decision stays in the Activity Logs.
+   */
+  cancelMassReview: (foodId: string) => void;
   markNotificationsRead: () => void;
   updateShelfLife: (categoryId: string, days: number) => void;
   setToast: (msg: string | null) => void;
@@ -206,6 +212,7 @@ const noopActions: AppActions = {
   distributeDonation: () => {},
   collectFood: () => {},
   reviewMass: () => {},
+  cancelMassReview: () => {},
   markNotificationsRead: () => {},
   updateShelfLife: () => {},
   setToast: () => {},
@@ -514,6 +521,56 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     [food, session, pushLog, showToast],
   );
 
+  /**
+   * Manager cancels a mass decision. An accidental Approve/Edit click returns
+   * the record to Pending with the originally declared mass restored, so the
+   * review can be redone. The previous decision remains traceable through the
+   * Activity Logs entry written here.
+   */
+  const cancelMassReview: AppActions["cancelMassReview"] = useCallback(
+    (foodId) => {
+      if (!session || session.role !== "Manager") return;
+      const item = food.find((f) => f.id === foodId);
+      if (!item) return;
+      const verification = item.massVerification;
+      if (verification.status === "Pending") {
+        showToast(`${foodId} is still awaiting review — nothing to cancel.`);
+        return;
+      }
+      const wasEdited = verification.status === "Edited";
+      setFood((prev) =>
+        prev.map((f) =>
+          f.id === foodId
+            ? {
+                ...f,
+                massG: verification.declaredG,
+                massVerification: {
+                  status: "Pending" as const,
+                  declaredG: verification.declaredG,
+                  confirmedG: null,
+                  reviewedBy: null,
+                  reviewedAt: null,
+                  note: undefined,
+                },
+              }
+            : f,
+        ),
+      );
+      pushLog(
+        session.name,
+        "Cancelled mass review",
+        foodId,
+        wasEdited
+          ? `Edited mass (${(verification.confirmedG ?? verification.declaredG).toLocaleString("en-US")} g) reverted to the declared ${verification.declaredG.toLocaleString("en-US")} g; record is Pending again.`
+          : `Approved mass withdrawn — record is Pending again with the declared ${verification.declaredG.toLocaleString("en-US")} g.`,
+      );
+      showToast(
+        `${foodId} mass review cancelled — record is Pending again with the declared mass restored.`,
+      );
+    },
+    [food, session, pushLog, showToast],
+  );
+
   const createDonation: AppActions["createDonation"] = useCallback(
     ({ foodIds, note }) => {
       if (!session) return null;
@@ -777,6 +834,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       distributeDonation,
       collectFood,
       reviewMass,
+      cancelMassReview,
       markNotificationsRead,
       updateShelfLife,
       setToast: showToast,
@@ -804,6 +862,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       distributeDonation,
       collectFood,
       reviewMass,
+      cancelMassReview,
       markNotificationsRead,
       updateShelfLife,
       showToast,
