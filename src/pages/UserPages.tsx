@@ -324,13 +324,14 @@ export function InventoryPage({
   /** Manager entry from User and Role Management — pre-filtered to one person. */
   initialOwner?: string;
 }) {
-  const { session, food, events, navigate, route, reviewMass, setToast } =
+  const { session, food, events, navigate, reviewMass, setToast } =
     useStore();
   const [q, setQ] = useState("");
   const [status, setStatus] = useState("All");
   const [category, setCategory] = useState("All");
   // Manager-only person filter. Seeded from the route when arriving from
-  // User and Role Management; clearable with the "All owners" option.
+  // User and Role Management (the page remounts with a fresh key), then
+  // freely changeable with the "All owners" option.
   const [owner, setOwner] = useState(initialOwner ?? "All");
   const [photo, setPhoto] = useState<FoodItem | null>(null);
   const [editId, setEditId] = useState<string | null>(null);
@@ -338,14 +339,11 @@ export function InventoryPage({
   const [editNote, setEditNote] = useState("");
 
   if (!session) return null;
-  const routeOwner =
-    route.name === "manager-inventory" && route.owner ? route.owner : undefined;
-  const activeOwner = routeOwner ?? owner;
   const base =
     role === "Manager"
-      ? activeOwner === "All"
+      ? owner === "All"
         ? food
-        : food.filter((f) => f.ownerUserId === activeOwner)
+        : food.filter((f) => f.ownerUserId === owner)
       : food.filter((f) => f.ownerUserId === session.userId);
 
   const ownerNames = new Map(food.map((f) => [f.ownerUserId, f.ownerLabel] as const));
@@ -452,7 +450,7 @@ export function InventoryPage({
           </select>
           {role === "Manager" && (
             <select
-              value={activeOwner}
+              value={owner}
               onChange={(e) => setOwner(e.target.value)}
               aria-label="Owner filter"
             >
