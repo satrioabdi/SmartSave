@@ -257,6 +257,17 @@ const FACTOR_SEEDS: FactorSeed[] = [
     "Range includes a negative lower bound — methodology review required before operational reporting (§19.2).",
   ],
   ["Roasted Coffee Beans", "Kopi bubuk/biji sangrai (unit sumber: 1 kg roasted beans)", "Other", 4.4, 85.7, 84.9, "kg CO₂e/kg food", "verified"],
+  [
+    "Mixed dish (recipe not approved)",
+    "Mixed dish — Klimato benchmark (assumed buffet format, maximum EF estimation; klimato.com/klimato-insights/food-emissions-benchmarks-by-sector)",
+    "Mixed dishes (benchmark)",
+    3.0,
+    3.0,
+    3.0,
+    "kg CO₂e/kg food",
+    "pending-source-check",
+    "Benchmark of 3.0 kg CO₂e per cover (buffet format, maximum EF estimation) applied per kilogram of food as a demo simplification — an approved ingredient/recipe calculation should replace it for operational reporting.",
+  ],
 ];
 
 export const FACTORS: EmissionFactor[] = FACTOR_SEEDS.map((s, i) => ({
@@ -300,15 +311,36 @@ export interface FactorResolution {
  * Resolve the emission factor for a category/subcategory/subtype.
  * §19.2: a liter-based factor may not be applied to a gram mass without an
  * approved density conversion → `unit-mismatch` → "Unable to calculate".
+ *
+ * Mixed dish (recipe not approved) resolves to the Klimato buffet benchmark
+ * (3.0 kg CO₂e per cover, maximum EF estimation) applied per kilogram — a
+ * demo simplification, flagged pending-source-check.
  */
 export function resolveFactor(
   categoryName: string,
   subcategory: string,
   subtype?: string,
 ): FactorResolution {
-  const key = subtype && subtype !== UNMAPPED_SUBTYPE ? subtype : subcategory;
+  if (subtype === UNMAPPED_SUBTYPE) {
+    const benchmark = FACTOR_BY_MAPPING.get(UNMAPPED_SUBTYPE);
+    if (benchmark) {
+      return {
+        state: { kind: "valid" },
+        factor: benchmark,
+        reason:
+          "No approved recipe calculation exists, so the Klimato mixed-dish benchmark applies (assumed buffet format, maximum EF estimation, 3.0 kg CO₂e per cover, applied per kg of food).",
+      };
+    }
+    return {
+      state: { kind: "not-configured" },
+      reason:
+        "Mixed or unclassified dish — no approved ingredient/recipe calculation is configured for this record.",
+    };
+  }
 
-  if (key === UNMAPPED_SUBTYPE || key === "Protein" || key === "Carbohydrate") {
+  const key = subtype ?? subcategory;
+
+  if (key === "Protein" || key === "Carbohydrate") {
     return {
       state: { kind: "not-configured" },
       reason:

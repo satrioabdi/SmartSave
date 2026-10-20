@@ -113,6 +113,7 @@ const SEED: SeedFood[] = [
   { id: "FD-1060", name: "White rice", category: "Prepared and Cooked Food", subcategory: "Carbohydrate", subtype: "Rice", massG: 2500, storedAt: iso(-3 * HOUR), status: "Stored", owner: "u-1", ownerLabel: "Nadia Prameswari", photoLabel: "white-rice.jpg", freshness: "fit", verified: "Pending" },
   { id: "FD-1061", name: "Fresh beef", category: "Prepared and Cooked Food", subcategory: "Protein", subtype: "Beef", massG: 1500, storedAt: iso(-20 * HOUR), status: "Stored", owner: "u-1", ownerLabel: "Nadia Prameswari", photoLabel: "fresh-beef.jpg", freshness: "fit", verified: "Pending" },
   { id: "FD-1062", name: "Red apples", category: "Fruit", subcategory: "Apple", massG: 3600, storedAt: iso(-2 * DAY), status: "Available for Donation", owner: "u-1", ownerLabel: "Nadia Prameswari", photoLabel: "red-apples.jpg", freshness: "fit", verified: "Approved" },
+  { id: "FD-1063", name: "Mixed rice meal tray", category: "Prepared and Cooked Food", subcategory: "Carbohydrate", subtype: "Mixed dish (recipe not approved)", massG: 1800, storedAt: iso(-26 * HOUR), status: "Collected", owner: "u-1", ownerLabel: "Nadia Prameswari", photoLabel: "rice-trays.jpg", freshness: "fit", verified: "Approved" },
 ];
 
 function buildFood(): FoodItem[] {
