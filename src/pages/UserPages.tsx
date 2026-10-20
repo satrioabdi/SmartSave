@@ -500,6 +500,7 @@ export function InventoryPage({
                     <PhotoThumb
                       name={f.photoLabel}
                       label={`${f.name} (${f.id})`}
+                      dataUrl={f.photoDataUrl}
                       onOpen={() => setPhoto(f)}
                     />
                   ) : (
@@ -649,6 +650,7 @@ export function InventoryPage({
         <PhotoModal
           name={photo.photoLabel ?? "photo"}
           label={`${photo.name} · ${photo.id} · declared ${formatMass(photo.massG)}`}
+          dataUrl={photo.photoDataUrl}
           onClose={() => setPhoto(null)}
         />
       )}
@@ -882,6 +884,7 @@ export function FoodDetailPage({ role = "User" }: { role?: "User" | "Manager" })
                           name={item.photoLabel}
                           label={`${item.name} (${item.id})`}
                           size={56}
+                          dataUrl={item.photoDataUrl}
                           onOpen={() => setPhotoOpen(true)}
                         />
                       ) : (
@@ -1027,6 +1030,7 @@ export function FoodDetailPage({ role = "User" }: { role?: "User" | "Manager" })
         <PhotoModal
           name={item.photoLabel}
           label={`${item.name} · ${item.id} · declared ${formatMass(item.massG)}`}
+          dataUrl={item.photoDataUrl}
           onClose={() => setPhotoOpen(false)}
         />
       )}

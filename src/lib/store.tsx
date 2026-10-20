@@ -150,6 +150,11 @@ interface AppActions {
     subtype?: string;
     massG: number;
     photoLabel: string;
+    /**
+     * Data URL of the uploaded/captured photo (session-only, prototype demo).
+     * Passed through so the record shows the user's own photo on click.
+     */
+    photoDataUrl?: string;
     freshness: "fit" | "rejected";
     /** Chosen virtual locker compartment (Register Food wizard step 1). */
     compartmentId: string;
@@ -337,6 +342,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         ownerUserId: session.userId,
         ownerLabel: session.name,
         photoLabel: input.photoLabel,
+        photoDataUrl: input.photoDataUrl,
         freshness: input.freshness,
         // Every new deposit enters the Manager mass-verification queue
         // (photo-on-scale workflow) as Pending.

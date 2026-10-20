@@ -120,6 +120,13 @@ export interface FoodItem {
   ownerUserId: string;
   ownerLabel: string;
   photoLabel?: string;
+  /**
+   * Prototype demo only: data URL of the photo actually uploaded/captured in
+   * this session (Register Food step 2). Kept in the in-memory store so the
+   * user's own photo — not a stock image — is what opens on click. Not
+   * persisted; a page reload falls back to the file-name resolution order.
+   */
+  photoDataUrl?: string;
   freshness: "pending" | "fit" | "rejected";
   /**
    * Mass-verification workflow (prototype demo): the User's photo is expected

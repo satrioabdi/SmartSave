@@ -655,12 +655,22 @@ function loadPhotoManifest(): Promise<Set<string> | null> {
 
 /**
  * Food photo media. Resolution order:
- *   1. a real image at photos/<file name as uploaded> — drop any jpg/png into
+ *   1. `dataUrl` — the photo actually uploaded/captured this session;
+ *   2. a real image at photos/<file name as uploaded> — drop any jpg/png into
  *      public/photos/ under the record's name and it is shown here;
- *   2. the generated demo illustration photos/<name>.svg (food on a scale);
- *   3. a deterministic emoji tile as the last-resort placeholder.
+ *   3. the generated demo illustration photos/<name>.svg (food on a scale);
+ *   4. a deterministic emoji tile as the last-resort placeholder.
  */
-export function FoodPhoto({ name, className }: { name: string; className?: string }) {
+export function FoodPhoto({
+  name,
+  dataUrl,
+  className,
+}: {
+  name: string;
+  /** Session data URL of the user's own upload — takes precedence. */
+  dataUrl?: string;
+  className?: string;
+}) {
   const [src, setSrc] = useState<string | null>(null);
   const [broken, setBroken] = useState(false);
   const { bg, fg } = photoTone(name);
@@ -668,6 +678,12 @@ export function FoodPhoto({ name, className }: { name: string; className?: strin
   useEffect(() => {
     let live = true;
     setBroken(false);
+    if (dataUrl) {
+      setSrc(dataUrl);
+      return () => {
+        live = false;
+      };
+    }
     const base = name.replace(/\.[a-z0-9]+$/i, "");
     const candidates = [`${name}`, `${base}.svg`];
     loadPhotoManifest().then((set) => {
@@ -681,7 +697,7 @@ export function FoodPhoto({ name, className }: { name: string; className?: strin
     return () => {
       live = false;
     };
-  }, [name]);
+  }, [name, dataUrl]);
 
   if (!src || broken) {
     return (
@@ -706,19 +722,22 @@ export function FoodPhoto({ name, className }: { name: string; className?: strin
 }
 
 /**
- * Clickable food-photo tile. Shows the record's photo (real image, demo
- * illustration or emoji placeholder) and opens the photo dialog on click.
+ * Clickable food-photo tile. Shows the record's photo (session upload, real
+ * image, demo illustration or emoji placeholder) and opens the dialog on
+ * click.
  */
 export function PhotoThumb({
   name,
   label,
   size = 44,
+  dataUrl,
   onOpen,
 }: {
   name: string;
   /** Accessible title, e.g. the food record ID. */
   label: string;
   size?: number;
+  dataUrl?: string;
   onOpen: () => void;
 }) {
   return (
@@ -730,7 +749,7 @@ export function PhotoThumb({
       aria-label={`Open food photo for ${label}`}
       onClick={onOpen}
     >
-      <FoodPhoto name={name} />
+      <FoodPhoto name={name} dataUrl={dataUrl} />
     </button>
   );
 }
@@ -739,24 +758,26 @@ export function PhotoThumb({
 export function PhotoModal({
   name,
   label,
+  dataUrl,
   onClose,
 }: {
   name: string;
   label: string;
+  dataUrl?: string;
   onClose: () => void;
 }) {
   return (
     <Modal title="Food photo" onClose={onClose} wide>
       <div className="photo-view" aria-label={`Food photo preview: ${name}`}>
-        <FoodPhoto name={name} className="photo-view-media" />
+        <FoodPhoto name={name} dataUrl={dataUrl} className="photo-view-media" />
         <div className="photo-view-name">{name}</div>
         <div className="photo-view-sub">{label}</div>
       </div>
       <Notice title="Prototype demo">
-        Demo records show a generated illustration of the food on the weighing
-        scale. To display a real photo, place the image file in
-        public/photos/ under the record's file name — it is then used instead
-        of the illustration.
+        Demo records show a real reference photo of the food, or a generated
+        illustration when none is available. A photo you upload yourself is
+        shown exactly as uploaded — in production this is the photo taken on
+        the weighing scale.
       </Notice>
     </Modal>
   );

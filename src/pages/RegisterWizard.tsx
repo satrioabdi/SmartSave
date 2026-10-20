@@ -189,6 +189,8 @@ export function RegisterFoodPage() {
   const [name, setName] = useState("");
   const [mass, setMass] = useState("");
   const [photo, setPhoto] = useState<string | null>(null);
+  /** Data URL of the picked/captured photo (session-only) — shown on the record. */
+  const [photoDataUrl, setPhotoDataUrl] = useState<string | null>(null);
   const [freshness, setFreshness] = useState<Freshness>("idle");
 
   const [barcode, setBarcode] = useState(previewBarcode);
@@ -226,6 +228,14 @@ export function RegisterFoodPage() {
     if (!file) return;
     setPhoto(file.name);
     setFreshness("running");
+    // Real uploads become a session data URL so the record shows the user's
+    // own photo (§14.2: this is a website simulation, not camera AI).
+    const reader = new FileReader();
+    reader.onload = () => setPhotoDataUrl(typeof reader.result === "string" ? reader.result : null);
+    reader.onerror = () => setPhotoDataUrl(null);
+    // Demo files are empty placeholders — reading them yields nothing.
+    if (file.size === 0) setPhotoDataUrl(null);
+    else reader.readAsDataURL(file);
     // Simulation only — no model is involved (§9, §14.2).
     window.setTimeout(() => {
       const rejected = /expired|basi|rotten|old/i.test(file.name);
@@ -316,6 +326,7 @@ export function RegisterFoodPage() {
         subtype: subtype || undefined,
         massG: Math.round(massNum),
         photoLabel: photo ?? "photo.jpg",
+        photoDataUrl: photoDataUrl ?? undefined,
         freshness: "fit",
         compartmentId,
         barcode,
@@ -346,6 +357,7 @@ export function RegisterFoodPage() {
     setName("");
     setMass("");
     setPhoto(null);
+    setPhotoDataUrl(null);
     setFreshness("idle");
     setBarcode(previewBarcode());
     setErrors({});
