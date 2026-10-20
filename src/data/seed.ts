@@ -112,7 +112,7 @@ const SEED: SeedFood[] = [
   // the English-labeled equivalents).
   { id: "FD-1060", name: "Nasi putih", category: "Prepared and Cooked Food", subcategory: "Carbohydrate", subtype: "Rice", massG: 2500, storedAt: iso(-3 * HOUR), status: "Stored", owner: "u-1", ownerLabel: "Nadia Prameswari", photoLabel: "nasi-putih.jpg", freshness: "fit", verified: "Pending" },
   { id: "FD-1061", name: "Daging sapi", category: "Prepared and Cooked Food", subcategory: "Protein", subtype: "Beef", massG: 1500, storedAt: iso(-20 * HOUR), status: "Stored", owner: "u-5", ownerLabel: "Yoga Pratama", photoLabel: "daging-sapi.jpg", freshness: "fit", verified: "Pending" },
-  { id: "FD-1062", name: "Apel merah", category: "Fruit", subcategory: "Apple", massG: 3600, storedAt: iso(-2 * DAY), status: "Available for Donation", owner: "u-4", ownerLabel: "Sinta Larasati", photoLabel: "apel-merah.jpg", freshness: "fit", verified: "Approved" },
+  { id: "FD-1062", name: "Apel merah", category: "Fruit", subcategory: "Apple", massG: 3600, storedAt: iso(-2 * DAY), status: "Available for Donation", owner: "u-1", ownerLabel: "Nadia Prameswari", photoLabel: "apel-merah.jpg", freshness: "fit", verified: "Approved" },
 ];
 
 function buildFood(): FoodItem[] {
