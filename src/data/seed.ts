@@ -107,12 +107,12 @@ const SEED: SeedFood[] = [
   { id: "FD-1057", name: "Dark chocolate slabs", category: "Dark Chocolate", subcategory: "Dark Chocolate / Cocoa-based", massG: 480, storedAt: iso(-30 * DAY), status: "Stored", owner: "u-4", ownerLabel: "Sinta Larasati", photoLabel: "dark-chocolate.jpg", freshness: "fit" },
   { id: "FD-1058", name: "Egg trays", category: "Prepared and Cooked Food", subcategory: "Protein", subtype: "Eggs", massG: 1200, storedAt: iso(-4 * HOUR), status: "Stored", owner: "u-1", ownerLabel: "Nadia Prameswari", photoLabel: "egg-trays.jpg", freshness: "fit", verified: "Pending" },
   { id: "FD-1059", name: "Other tubers basket", category: "Prepared and Cooked Food", subcategory: "Carbohydrate", subtype: "Other Tubers", massG: 1600, storedAt: iso(-48 * HOUR), status: "Stored", owner: "u-5", ownerLabel: "Yoga Pratama", photoLabel: "tubers.jpg", freshness: "fit", verified: "Pending" },
-  // Explicit demo examples for rice, beef, and apple. Indonesian names so
-  // testers can find them quickly during demo runs (FD-1044/1045/1051 keep
-  // the English-labeled equivalents).
-  { id: "FD-1060", name: "Nasi putih", category: "Prepared and Cooked Food", subcategory: "Carbohydrate", subtype: "Rice", massG: 2500, storedAt: iso(-3 * HOUR), status: "Stored", owner: "u-1", ownerLabel: "Nadia Prameswari", photoLabel: "nasi-putih.jpg", freshness: "fit", verified: "Pending" },
-  { id: "FD-1061", name: "Daging sapi", category: "Prepared and Cooked Food", subcategory: "Protein", subtype: "Beef", massG: 1500, storedAt: iso(-20 * HOUR), status: "Stored", owner: "u-5", ownerLabel: "Yoga Pratama", photoLabel: "daging-sapi.jpg", freshness: "fit", verified: "Pending" },
-  { id: "FD-1062", name: "Apel merah", category: "Fruit", subcategory: "Apple", massG: 3600, storedAt: iso(-2 * DAY), status: "Available for Donation", owner: "u-1", ownerLabel: "Nadia Prameswari", photoLabel: "apel-merah.jpg", freshness: "fit", verified: "Approved" },
+  // Explicit demo examples for white rice, beef, and apples (FD-1044/1045/1051
+  // are the earlier English-labeled equivalents). All three belong to Nadia so
+  // the per-user filter demo shows them in one place.
+  { id: "FD-1060", name: "White rice", category: "Prepared and Cooked Food", subcategory: "Carbohydrate", subtype: "Rice", massG: 2500, storedAt: iso(-3 * HOUR), status: "Stored", owner: "u-1", ownerLabel: "Nadia Prameswari", photoLabel: "white-rice.jpg", freshness: "fit", verified: "Pending" },
+  { id: "FD-1061", name: "Fresh beef", category: "Prepared and Cooked Food", subcategory: "Protein", subtype: "Beef", massG: 1500, storedAt: iso(-20 * HOUR), status: "Stored", owner: "u-1", ownerLabel: "Nadia Prameswari", photoLabel: "fresh-beef.jpg", freshness: "fit", verified: "Pending" },
+  { id: "FD-1062", name: "Red apples", category: "Fruit", subcategory: "Apple", massG: 3600, storedAt: iso(-2 * DAY), status: "Available for Donation", owner: "u-1", ownerLabel: "Nadia Prameswari", photoLabel: "red-apples.jpg", freshness: "fit", verified: "Approved" },
 ];
 
 function buildFood(): FoodItem[] {
