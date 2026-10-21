@@ -42,6 +42,7 @@ export const ACCOUNTS: Account[] = [
     email: "green@smartsave.demo",
     role: "Green Community",
     organization: "Green Community Surabaya",
+    address: "Jl. Raya Keputih No. 45, Sukolilo, Surabaya, Jawa Timur 60111",
     createdAt: iso(-64 * DAY),
   },
   {
@@ -113,7 +114,7 @@ const SEED: SeedFood[] = [
   { id: "FD-1060", name: "White rice", category: "Prepared and Cooked Food", subcategory: "Carbohydrate", subtype: "Rice", massG: 2500, storedAt: iso(-3 * HOUR), status: "Stored", owner: "u-1", ownerLabel: "Nadia Prameswari", photoLabel: "white-rice.jpg", freshness: "fit", verified: "Pending" },
   { id: "FD-1061", name: "Fresh beef", category: "Prepared and Cooked Food", subcategory: "Protein", subtype: "Beef", massG: 1500, storedAt: iso(-20 * HOUR), status: "Stored", owner: "u-1", ownerLabel: "Nadia Prameswari", photoLabel: "fresh-beef.jpg", freshness: "fit", verified: "Pending" },
   { id: "FD-1062", name: "Red apples", category: "Fruit", subcategory: "Apple", massG: 3600, storedAt: iso(-2 * DAY), status: "Available for Donation", owner: "u-1", ownerLabel: "Nadia Prameswari", photoLabel: "red-apples.jpg", freshness: "fit", verified: "Approved" },
-  { id: "FD-1063", name: "Mixed rice meal tray", category: "Prepared and Cooked Food", subcategory: "Carbohydrate", subtype: "Mixed dish (recipe not approved)", massG: 1800, storedAt: iso(-26 * HOUR), status: "Collected", owner: "u-1", ownerLabel: "Nadia Prameswari", photoLabel: "rice-trays.jpg", freshness: "fit", verified: "Approved" },
+  { id: "FD-1063", name: "Mixed rice meal tray", category: "Prepared and Cooked Food", subcategory: "Carbohydrate", subtype: "Mixed dish", massG: 1800, storedAt: iso(-26 * HOUR), status: "Collected", owner: "u-1", ownerLabel: "Nadia Prameswari", photoLabel: "rice-trays.jpg", freshness: "fit", verified: "Approved" },
 ];
 
 function buildFood(): FoodItem[] {
@@ -271,6 +272,8 @@ export const SEED_REQUESTS: GcRequest[] = [
     submittedBy: "Rumah Pangan Hijau",
     submittedAt: iso(-7.5 * DAY),
     decidedAt: iso(-7 * DAY),
+    contactEmail: "green@smartsave.demo",
+    contactAddress: "Jl. Raya Keputih No. 45, Sukolilo, Surabaya, Jawa Timur 60111",
   },
   {
     id: "RQ-302",
@@ -280,6 +283,8 @@ export const SEED_REQUESTS: GcRequest[] = [
     status: "Pending",
     submittedBy: "Rumah Pangan Hijau",
     submittedAt: iso(-30 * HOUR),
+    contactEmail: "green@smartsave.demo",
+    contactAddress: "Jl. Raya Keputih No. 45, Sukolilo, Surabaya, Jawa Timur 60111",
   },
   {
     id: "RQ-303",
@@ -291,6 +296,8 @@ export const SEED_REQUESTS: GcRequest[] = [
     submittedAt: iso(-1.8 * DAY),
     decidedAt: iso(-1.5 * DAY),
     reason: "Donation was cancelled by the donor before allocation.",
+    contactEmail: "green@smartsave.demo",
+    contactAddress: "Jl. Raya Keputih No. 45, Sukolilo, Surabaya, Jawa Timur 60111",
   },
 ];
 

@@ -1,4 +1,4 @@
-/** Green Community pages: dashboard, donations, requests, received history. */
+/** Green Community pages: dashboard, food waste, requests, received history. */
 import { useState } from "react";
 import { AppShell } from "../components/AppShell";
 import {
@@ -32,12 +32,96 @@ import {
 } from "../lib/carbon";
 import {
   donationStatusVariant,
+  expiryDeltaLabel,
   foodStatusVariant,
   formatDate,
   formatDateTime,
   requestStatusVariant,
 } from "../lib/format";
-import type { Period } from "../lib/types";
+import type { FoodItem, GcRequest, Period } from "../lib/types";
+
+/* ---------------- Expiry status (food waste / surplus) ---------------- */
+
+/**
+ * §GC flow: expired food is food waste, food inside its shelf life is surplus
+ * food. The badge states which, and how many days past (waste) or before
+ * (surplus) the expiry date the record sits.
+ */
+function ExpiryBadge({ item }: { item: FoodItem }) {
+  const delta = expiryDeltaLabel(item.expiresAt);
+  return delta.expired ? (
+    <span>
+      <Badge variant="danger">Food waste — expired</Badge>
+      <span className="cell-sub">{delta.label}</span>
+    </span>
+  ) : (
+    <span>
+      <Badge variant="success">Surplus food</Badge>
+      <span className="cell-sub">{delta.label}</span>
+    </span>
+  );
+}
+
+/** The waste-bank detail line shown for expired food waste. */
+function WasteBankDetail() {
+  return (
+    <span className="tiny">
+      Managed by the Manager and stored at the waste bank — delivery details
+      follow via email.
+    </span>
+  );
+}
+
+/**
+ * The pickup-barcode detail line for surplus food. When the Manager approved
+ * the request, a new barcode was issued and the record's previous barcode
+ * was deactivated, so the requester collects the food with the new code.
+ */
+function PickupDetail({
+  item,
+  request,
+}: {
+  item: FoodItem;
+  request?: GcRequest;
+}) {
+  const issued = request?.pickupBarcode;
+  if (issued && issued.replaces.includes(item.barcode)) {
+    return (
+      <span>
+        <Badge variant="info">{issued.code}</Badge>
+        <span className="cell-sub">
+          New pickup barcode — previous barcode {item.barcode} was deactivated.
+        </span>
+      </span>
+    );
+  }
+  if (request && (request.status === "Approved" || request.status === "Completed")) {
+    return <span className="tiny">Collect with the Manager at handover.</span>;
+  }
+  return (
+    <span className="tiny">
+      A pickup barcode is issued when the Manager approves the request.
+    </span>
+  );
+}
+
+/** Donation-level expiry summary over its items. */
+function donationExpiry(items: FoodItem[]): {
+  expired: number;
+  edible: number;
+  worst: FoodItem | undefined;
+} {
+  const expired = items.filter(
+    (f) => expiryDeltaLabel(f.expiresAt).expired,
+  );
+  const edible = items.filter((f) => !expiryDeltaLabel(f.expiresAt).expired);
+  // The most urgent item drives the label: nearest expiry among surplus,
+  // or the longest-expired one when everything is waste.
+  const worst = [...items].sort(
+    (a, b) => new Date(a.expiresAt).getTime() - new Date(b.expiresAt).getTime(),
+  )[0];
+  return { expired: expired.length, edible: edible.length, worst };
+}
 
 /* ----------------------------- Dashboard ----------------------------- */
 
@@ -270,10 +354,10 @@ export function GcDonationsPage() {
   const mine = requests.filter((r) => r.submittedBy === session.name);
 
   return (
-    <AppShell title="Available Food Waste / Donations">
+    <AppShell title="Available Food Waste">
       <PageHead
         eyebrow="Role: Green Community"
-        title="Available Food Waste / Donations"
+        title="Available Food Waste"
         description="Browse donations offered by Users. Submit a request for anything you can still use — a Manager reviews and records the actual handover."
       />
 
@@ -300,11 +384,13 @@ export function GcDonationsPage() {
               <th scope="col">Offered by</th>
               <th scope="col">Created</th>
               <QuantityHeader />
+              <th scope="col">Expiry status</th>
+              <th scope="col">Detail</th>
               <th scope="col" style={{ textAlign: "right" }}>Action</th>
             </tr>
           </thead>
           <tbody>
-            {rows.length === 0 && <TableEmpty colSpan={7} text="No donations in this status." />}
+            {rows.length === 0 && <TableEmpty colSpan={9} text="No donations in this status." />}
             {rows.map((d) => {
               const items = food.filter((f) => d.foodIds.includes(f.id));
               const kg = items.reduce((s, f) => {
@@ -312,6 +398,7 @@ export function GcDonationsPage() {
                 return s + (c.kind === "value" ? c.kg : 0);
               }, 0);
               const already = mine.find((r) => r.donationId === d.id);
+              const expiry = donationExpiry(items);
               return (
                 <tr key={d.id}>
                   <td>
@@ -329,6 +416,29 @@ export function GcDonationsPage() {
                       <CarbonValue value={{ kind: "value", kg: Math.round(kg * 100) / 100 }} />
                     ) : (
                       <Badge variant="warning">Emission factor not configured</Badge>
+                    )}
+                  </td>
+                  <td>
+                    {expiry.expired > 0 && expiry.edible > 0 ? (
+                      <span>
+                        <Badge variant="warning">Mixed</Badge>
+                        <span className="cell-sub">
+                          {expiry.edible} surplus · {expiry.expired} expired
+                        </span>
+                      </span>
+                    ) : expiry.worst ? (
+                      <ExpiryBadge item={expiry.worst} />
+                    ) : (
+                      <span className="tiny">—</span>
+                    )}
+                  </td>
+                  <td>
+                    {items.some((f) => expiryDeltaLabel(f.expiresAt).expired) ? (
+                      <WasteBankDetail />
+                    ) : items.length > 0 ? (
+                      <PickupDetail item={items[0]} request={already} />
+                    ) : (
+                      <span className="tiny">—</span>
                     )}
                   </td>
                   <td>
@@ -361,6 +471,16 @@ export function GcDonationsPage() {
             })}
           </tbody>
         </TableWrap>
+
+        <Notice title="Food waste or surplus food">
+          Every listing states whether the food has already expired
+          (<strong>food waste</strong>) or is still inside its shelf life
+          (<strong>surplus food</strong>), with how many days past or before the
+          expiry date it sits. Expired food waste is managed by the Manager and
+          stored at the waste bank — delivery details follow via email. Surplus
+          food is collected with a pickup barcode issued at Manager approval;
+          issuing it deactivates the previous record barcode.
+        </Notice>
 
         <Notice title="Requesting is not receiving">
           A request only records your intent. The donation is allocated after a
@@ -424,6 +544,7 @@ export function GcDonationDetailPage({ id }: { id: string }) {
                 <tr>
                   <th scope="col">Record</th>
                   <th scope="col">Status</th>
+                  <th scope="col">Expiry status</th>
                   <QuantityHeader />
                 </tr>
               </thead>
@@ -445,6 +566,9 @@ export function GcDonationDetailPage({ id }: { id: string }) {
                       <td>
                         <StatusBadge label={f.status} variant={foodStatusVariant(f.status)} />
                       </td>
+                      <td>
+                        <ExpiryBadge item={f} />
+                      </td>
                       <td className="num-col">{formatMass(f.massG)}</td>
                       <td className="num-col">
                         <CarbonValue value={c} />
@@ -454,6 +578,23 @@ export function GcDonationDetailPage({ id }: { id: string }) {
                 })}
               </tbody>
             </TableWrap>
+
+            {items.some((f) => expiryDeltaLabel(f.expiresAt).expired) && (
+              <Notice title="Expired food waste">
+                Expired records in this donation are managed by the Manager and
+                stored at the waste bank — you will be informed further by
+                email about the delivery.
+              </Notice>
+            )}
+            {myRequest?.pickupBarcode && (
+              <Notice title="Pickup barcode issued">
+                Manager approval issued pickup barcode{" "}
+                <strong>{myRequest.pickupBarcode.code}</strong> for the surplus
+                food. The previous record barcode(s){" "}
+                {myRequest.pickupBarcode.replaces.join(", ")} were deactivated
+                — collect the food with the new code.
+              </Notice>
+            )}
             <AnalyticsNote />
           </Panel>
 
@@ -556,7 +697,7 @@ export function GcDonationDetailPage({ id }: { id: string }) {
 /* --------------------------- My requests ----------------------------- */
 
 export function GcRequestsPage() {
-  const { session, requests, donations, navigate } = useStore();
+  const { session, requests, donations, food, navigate } = useStore();
   const [status, setStatus] = useState("All");
 
   if (!session) return null;
@@ -597,35 +738,61 @@ export function GcRequestsPage() {
               <th scope="col">Submitted</th>
               <th scope="col">Decided</th>
               <QuantityHeader />
+              <th scope="col">Contact (address · email)</th>
+              <th scope="col">Expiry status</th>
+              <th scope="col">Detail</th>
               <th scope="col">Reason / note</th>
             </tr>
           </thead>
           <tbody>
-            {rows.length === 0 && <TableEmpty colSpan={7} text="No requests in this status." />}
-            {rows.map((r) => (
-              <tr key={r.id}>
-                <td>
-                  <span className="cell-strong">{r.label}</span>
-                  <span className="cell-sub">{r.id} · {r.donationId}</span>
-                </td>
-                <td>
-                  <StatusBadge label={r.status} variant={requestStatusVariant(r.status)} />
-                </td>
-                <td className="num-col">{formatDateTime(r.submittedAt)}</td>
-                <td className="num-col">
-                  {r.decidedAt ? formatDateTime(r.decidedAt) : "—"}
-                </td>
-                <td className="num-col">{formatMass(r.massG)}</td>
-                <td>
-                  <Badge variant={r.status === "Completed" ? "neutral" : "info"}>
-                    {r.status === "Completed"
-                      ? "Counted once when distributed"
-                      : "Not counted until distributed"}
-                  </Badge>
-                </td>
-                <td className="tiny">{r.reason ?? "—"}</td>
-              </tr>
-            ))}
+            {rows.length === 0 && <TableEmpty colSpan={10} text="No requests in this status." />}
+            {rows.map((r) => {
+              const donation = donations.find((d) => d.id === r.donationId);
+              const items = donation
+                ? food.filter((f) => donation.foodIds.includes(f.id))
+                : [];
+              const expiry = donationExpiry(items);
+              return (
+                <tr key={r.id}>
+                  <td>
+                    <span className="cell-strong">{r.label}</span>
+                    <span className="cell-sub">{r.id} · {r.donationId}</span>
+                  </td>
+                  <td>
+                    <StatusBadge label={r.status} variant={requestStatusVariant(r.status)} />
+                  </td>
+                  <td className="num-col">{formatDateTime(r.submittedAt)}</td>
+                  <td className="num-col">
+                    {r.decidedAt ? formatDateTime(r.decidedAt) : "—"}
+                  </td>
+                  <td className="num-col">{formatMass(r.massG)}</td>
+                  <td>
+                    <Badge variant={r.status === "Completed" ? "neutral" : "info"}>
+                      {r.status === "Completed"
+                        ? "Counted once when distributed"
+                        : "Not counted until distributed"}
+                    </Badge>
+                  </td>
+                  <td className="tiny">
+                    {r.contactAddress ?? "—"}
+                    <span className="cell-sub">{r.contactEmail ?? "—"}</span>
+                  </td>
+                  <td>
+                    {expiry.worst ? <ExpiryBadge item={expiry.worst} /> : <span className="tiny">—</span>}
+                  </td>
+                  <td>
+                    {items.some((f) => expiryDeltaLabel(f.expiresAt).expired) ? (
+                      <WasteBankDetail />
+                    ) : items.length > 0 ? (
+                      <PickupDetail item={items[0]} request={r} />
+                    ) : (
+                      <span className="tiny">—</span>
+                    )}
+                  </td>
+                  <td className="tiny">{r.reason ?? "—"}</td>
+                </tr>
+              );
+            })}
           </tbody>
         </TableWrap>
       </div>
@@ -651,10 +818,10 @@ export function GcHistoryPage() {
   const unresolved = histEvents.filter((e) => e.co2eKg === null).length;
 
   return (
-    <AppShell title="Received / Distributed Food History">
+    <AppShell title="Received Food History">
       <PageHead
         eyebrow="Role: Green Community"
-        title="Received / Distributed Food History"
+        title="Received Food History"
         description="Food a Manager recorded as handed over to you, with the impact event written once per mass and outcome."
       />
 

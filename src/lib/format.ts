@@ -66,6 +66,30 @@ export function isExpiringSoon(iso: string, now = new Date()): boolean {
 }
 
 /**
+ * Expiry delta for the Green Community flow: already-expired food is food
+ * waste, not-yet-expired food is surplus food. The label states how many days
+ * past (waste) or before (surplus) the expiry date the record sits.
+ */
+export function expiryDeltaLabel(
+  expiresAt: string,
+  now = new Date(),
+): { expired: boolean; label: string } {
+  const diff = new Date(expiresAt).getTime() - now.getTime();
+  if (diff <= 0) {
+    const days = Math.floor(-diff / 86400000);
+    return {
+      expired: true,
+      label: days >= 1 ? `Expired ${days} day${days === 1 ? "" : "s"} ago` : "Expired today",
+    };
+  }
+  const days = Math.ceil(diff / 86400000);
+  return {
+    expired: false,
+    label: `Expires in ${days} day${days === 1 ? "" : "s"}`,
+  };
+}
+
+/**
  * Flow diagram 12: `Stored --> Expired: Expiry terlewati`.
  * There is no backend scheduler in this prototype, so the transition is
  * derived from the stored expiration datetime instead of being claimed as an

@@ -655,6 +655,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         showToast("A request for this donation is already recorded.");
         return;
       }
+      // Requester contact (residence address + email) is captured at
+      // submission so a Manager can arrange delivery or email follow-up.
+      const account = ACCOUNTS.find((a) => a.id === session.userId);
       const request: GcRequest = {
         id: nextId("RQ"),
         donationId,
@@ -663,6 +666,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         status: "Pending",
         submittedBy: session.name,
         submittedAt: new Date().toISOString(),
+        contactEmail: account?.email,
+        contactAddress: account?.address,
       };
       setRequests((prev) => [request, ...prev]);
       pushLog(
@@ -676,35 +681,86 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     [donations, requests, session, pushLog, showToast],
   );
 
+  /**
+   * Manager approves or rejects a Green Community request. On approval of
+   * surplus (not-yet-expired) food a new pickup barcode is issued and the
+   * record's original barcode is deactivated — the requester collects the
+   * food with the new code. Expired food waste skips the barcode: the
+   * Manager handles it at the waste bank and emails delivery details.
+   */
   const decideRequest: AppActions["decideRequest"] = useCallback(
     (id, approve, reason) => {
       const request = requests.find((r) => r.id === id);
       if (!request || request.status !== "Pending") return;
+      const decidedAt = new Date().toISOString();
+
+      // Expiry check at approval time decides the branch (food waste vs
+      // surplus food). Only an effective-Expired status counts — a record that
+      // is still inside its shelf life stays surplus even if it sits in
+      // "Expired" display state of another flow.
+      const donation = donations.find((d) => d.id === request.donationId);
+      const items = donation
+        ? food.filter((f) => donation.foodIds.includes(f.id))
+        : [];
+      const edible = items.filter(
+        (f) => effectiveFoodStatus(f.status, f.expiresAt) !== "Expired",
+      );
+      const expiredCount = items.length - edible.length;
+
+      let pickup: GcRequest["pickupBarcode"] | undefined;
+      if (approve && edible.length > 0) {
+        const pickId = nextId("PK");
+        pickup = {
+          code: `SS-PK-${pickId.replace("PK-", "")}`,
+          issuedAt: decidedAt,
+          replaces: edible.map((f) => f.barcode),
+        };
+        // Deactivate the previous (User) barcodes and link the replacement.
+        const replacedIds = new Set(edible.map((f) => f.id));
+        setFood((prev) =>
+          prev.map((f) =>
+            replacedIds.has(f.id)
+              ? { ...f, barcodeActive: false, replacementBarcode: pickup!.code }
+              : f,
+          ),
+        );
+      }
+
       setRequests((prev) =>
         prev.map((r) =>
           r.id === id
             ? {
                 ...r,
                 status: approve ? "Approved" : "Rejected",
-                decidedAt: new Date().toISOString(),
+                decidedAt,
                 reason: approve ? undefined : reason,
+                pickupBarcode: pickup ?? r.pickupBarcode,
               }
             : r,
         ),
       );
+      const wasteNote = expiredCount > 0
+        ? ` ${expiredCount} expired item(s) are not collectible — they are managed as food waste at the waste bank and delivery details follow by email.`
+        : "";
       pushLog(
         session?.name ?? "Manager",
         approve ? "Approved request" : "Rejected request",
         id,
         approve
-          ? "Allocation confirmed for Green Community."
+          ? (pickup
+            ? `Allocation confirmed for Green Community. Pickup barcode ${pickup.code} issued for the surplus food; the previous record barcode(s) ${pickup.replaces.join(", ")} were deactivated.${wasteNote}`
+            : `Allocation confirmed for Green Community.${wasteNote}`)
           : reason || "No reason recorded.",
       );
       showToast(
-        `Request ${id} ${approve ? "approved" : "rejected"}. Status recorded.`,
+        approve
+          ? pickup
+            ? `Request ${id} approved — pickup barcode ${pickup.code} issued (previous barcode deactivated).`
+            : `Request ${id} approved. Status recorded.`
+          : `Request ${id} rejected. Status recorded.`,
       );
     },
-    [requests, session, pushLog, showToast],
+    [requests, donations, food, session, pushLog, showToast],
   );
 
   /**

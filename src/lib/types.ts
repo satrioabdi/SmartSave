@@ -105,6 +105,10 @@ export interface FoodCategory {
 export interface FoodItem {
   id: string;
   barcode: string;
+  /** Demo: false once a Green Community pickup barcode replaced this code. */
+  barcodeActive?: boolean;
+  /** The replacement pickup barcode when the original was deactivated (demo). */
+  replacementBarcode?: string;
   name: string;
   category: string;
   subcategory: string;
@@ -183,6 +187,21 @@ export interface GcRequest {
   submittedAt: string;
   decidedAt?: string;
   reason?: string;
+  /** Requester contact captured at submission — Manager delivery info. */
+  contactEmail?: string;
+  /** Requester residence address captured at submission. */
+  contactAddress?: string;
+  /**
+   * Pickup barcode issued at Manager approval for surplus (not-yet-expired)
+   * food. Issuing it deactivates the record's original barcode, so the
+   * requester collects the surplus food with this new code (prototype demo).
+   */
+  pickupBarcode?: {
+    code: string;
+    issuedAt: string;
+    /** Record barcodes this code replaces (now deactivated). */
+    replaces: string[];
+  };
 }
 
 export interface CarbonImpactEvent {
@@ -228,6 +247,8 @@ export interface Account {
   email: string;
   role: Role;
   organization?: string;
+  /** Residence / contact address shown on the account (Green Community). */
+  address?: string;
   createdAt: string;
 }
 

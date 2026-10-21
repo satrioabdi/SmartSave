@@ -63,7 +63,7 @@ export const CATEGORIES: FoodCategory[] = [
         "Beef",
         "Farmed Fish",
         "Farmed Crustaceans",
-        "Mixed dish (recipe not approved)",
+        "Mixed dish",
       ],
       Carbohydrate: [
         "Wheat and Rye",
@@ -73,7 +73,7 @@ export const CATEGORIES: FoodCategory[] = [
         "Potatoes",
         "Cassava",
         "Other Tubers",
-        "Mixed dish (recipe not approved)",
+        "Mixed dish",
       ],
     },
     shelfLifeDays: 3,
@@ -98,7 +98,7 @@ export const CATEGORIES: FoodCategory[] = [
       { match: "Potatoes", days: 5, note: "5 days — raw tuber" },
       { match: "Cassava", days: 5, note: "5 days — raw tuber" },
       { match: "Other Tubers", days: 5, note: "5 days — raw tuber" },
-      { match: "Mixed dish (recipe not approved)", days: 3, note: "3 days — cooked meal" },
+      { match: "Mixed dish", days: 3, note: "3 days — cooked meal" },
     ],
     factorNote:
       "Dependent subtype; mixed dishes need approved ingredient/recipe calculation",
@@ -258,7 +258,7 @@ const FACTOR_SEEDS: FactorSeed[] = [
   ],
   ["Roasted Coffee Beans", "Kopi bubuk/biji sangrai (unit sumber: 1 kg roasted beans)", "Other", 4.4, 85.7, 84.9, "kg CO₂e/kg food", "verified"],
   [
-    "Mixed dish (recipe not approved)",
+    "Mixed dish",
     "Mixed dish — Klimato benchmark (assumed buffet format, maximum EF estimation; klimato.com/klimato-insights/food-emissions-benchmarks-by-sector)",
     "Mixed dishes (benchmark)",
     3.0,
@@ -298,7 +298,7 @@ const UNMAPPED_SUBCATEGORIES = new Set([
   "Spices",
 ]);
 
-const UNMAPPED_SUBTYPE = "Mixed dish (recipe not approved)";
+const UNMAPPED_SUBTYPE = "Mixed dish";
 
 export interface FactorResolution {
   state: FactorState;
@@ -312,7 +312,7 @@ export interface FactorResolution {
  * §19.2: a liter-based factor may not be applied to a gram mass without an
  * approved density conversion → `unit-mismatch` → "Unable to calculate".
  *
- * Mixed dish (recipe not approved) resolves to the Klimato buffet benchmark
+ * Mixed dish resolves to the Klimato buffet benchmark
  * (3.0 kg CO₂e per cover, maximum EF estimation) applied per kilogram — a
  * demo simplification, flagged pending-source-check.
  */

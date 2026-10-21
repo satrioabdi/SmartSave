@@ -45,8 +45,22 @@ export function ScanBarcodePage() {
       setResultId(null);
       return;
     }
+    // A deactivated original barcode is rejected with the replacement code,
+    // so the holder is pointed at the active pickup barcode.
+    const deactivated = food.find((f) => f.barcodeActive === false && f.barcode.toUpperCase() === q);
+    if (deactivated) {
+      setError(
+        `Barcode ${deactivated.barcode} was deactivated. Use the replacement pickup barcode ${deactivated.replacementBarcode ?? "issued at Manager approval"}.`,
+      );
+      setResultId(null);
+      return;
+    }
+    // A Green Community pickup barcode resolves to the same record.
     const hit = food.find(
-      (f) => f.barcode.toUpperCase() === q || f.id.toUpperCase() === q,
+      (f) =>
+        f.barcode.toUpperCase() === q ||
+        f.id.toUpperCase() === q ||
+        f.replacementBarcode?.toUpperCase() === q,
     );
     if (!hit) {
       setError("Not Found — no record matches this barcode.");
@@ -54,7 +68,7 @@ export function ScanBarcodePage() {
       return;
     }
     setError(null);
-    setQuery(hit.barcode);
+    setQuery(hit.replacementBarcode ?? hit.barcode);
     setResultId(hit.id);
   };
 
@@ -85,6 +99,7 @@ export function ScanBarcodePage() {
           )
         }
       />
+
 
       <div className="stack">
         <SimulationBanner>
@@ -161,7 +176,14 @@ export function ScanBarcodePage() {
                 <Badge variant="success">
                   {isManager ? "Manager access" : "Owner access"}
                 </Badge>
-                <Badge variant="info">{item.barcode}</Badge>
+                {item.barcodeActive === false ? (
+                  <Badge variant="warning">Original barcode {item.barcode} deactivated</Badge>
+                ) : (
+                  <Badge variant="info">{item.barcode}</Badge>
+                )}
+                {item.replacementBarcode && (
+                  <Badge variant="info">Pickup {item.replacementBarcode}</Badge>
+                )}
               </div>
               <SummaryList
                 rows={[

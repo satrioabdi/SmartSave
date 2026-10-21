@@ -75,6 +75,7 @@ export function ProfilePage() {
                   { label: "User ID", value: session.userId },
                   { label: "Email", value: account?.email ?? "—" },
                   { label: "Organization", value: account?.organization ?? "—" },
+                  { label: "Address", value: account?.address ?? "—" },
                   { label: "Joined", value: account ? formatDate(account.createdAt) : "—" },
                 ]}
               />
@@ -153,9 +154,9 @@ export function ProfilePage() {
                         ]
                       : session.role === "Green Community"
                         ? [
-                            { label: "Browse", value: "Available donations" },
+                            { label: "Browse", value: "Available food waste" },
                             { label: "Submit", value: "Requests and track their status" },
-                            { label: "View", value: "Received / distributed food history" },
+                            { label: "View", value: "Received food history" },
                             { label: "Cannot", value: <Badge variant="danger">Approve requests or edit rules</Badge> },
                           ]
                         : [

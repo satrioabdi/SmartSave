@@ -492,7 +492,7 @@ export function ManagerCategoriesPage() {
                                 {subtypes.map((s) => (
                                   <Badge
                                     key={s}
-                                    variant={s === "Mixed dish (recipe not approved)" ? "warning" : "neutral"}
+                                    variant={s === "Mixed dish" ? "warning" : "neutral"}
                                   >
                                     {s}
                                   </Badge>
@@ -1128,12 +1128,13 @@ export function ManagerRequestsPage() {
               <th scope="col">Status</th>
               <th scope="col">Submitted by</th>
               <th scope="col">Submitted</th>
+              <th scope="col">Address · Email</th>
               <QuantityHeader />
               <th scope="col" style={{ textAlign: "right" }}>Decision</th>
             </tr>
           </thead>
           <tbody>
-            {rows.length === 0 && <TableEmpty colSpan={7} text="No requests in this status." />}
+            {rows.length === 0 && <TableEmpty colSpan={8} text="No requests in this status." />}
             {rows.map((r) => {
               const donation = donations.find((d) => d.id === r.donationId);
               return (
@@ -1150,6 +1151,10 @@ export function ManagerRequestsPage() {
                   </td>
                   <td className="num-col">{r.submittedBy}</td>
                   <td className="num-col">{formatDateTime(r.submittedAt)}</td>
+                  <td className="tiny">
+                    {r.contactAddress ?? "—"}
+                    <span className="cell-sub">{r.contactEmail ?? "—"}</span>
+                  </td>
                   <td className="num-col">{formatMass(r.massG)}</td>
                   <td className="num-col">
                     <Badge variant="neutral">Counted only after handover</Badge>
