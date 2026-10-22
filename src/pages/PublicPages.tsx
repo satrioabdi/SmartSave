@@ -190,8 +190,8 @@ export function AboutPage() {
           <Panel title="Problem statement">
             <div className="stack stack--sm">
               <p>
-                Edible food is discarded because storage and expiry are tracked
-                informally, surplus is not offered to anyone who could still use
+                Surplus food is discarded because storage and expiry are tracked
+                informally, it is not offered to anyone who could still use
                 it, and the environmental effect of that waste is rarely
                 quantified in a way people can act on.
               </p>
