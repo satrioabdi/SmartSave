@@ -818,11 +818,11 @@ export function GcHistoryPage() {
   const unresolved = histEvents.filter((e) => e.co2eKg === null).length;
 
   return (
-    <AppShell title="Received Food History">
+    <AppShell title="Received Surplus Food/Food waste History">
       <PageHead
         eyebrow="Role: Green Community"
-        title="Received Food History"
-        description="Food a Manager recorded as handed over to you, with the impact event written once per mass and outcome."
+        title="Received Surplus Food/Food waste History"
+        description="Surplus food and food waste a Manager recorded as handed over to you, with the impact event written once per mass and outcome."
       />
 
       <div className="stack">
