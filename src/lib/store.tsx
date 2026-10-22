@@ -125,6 +125,91 @@ export const ROUTE_PATH: Record<Route["name"], string> = {
   "not-found": "/not-found",
 };
 
+/**
+ * Reverse lookup from URL path to route name (first entry wins). The detail
+ * routes share their list route's path, so they are skipped here and resolved
+ * from the ?id= query parameter in routeFromLocation().
+ */
+const PATH_TO_NAME = new Map<string, Route["name"]>();
+for (const [name, path] of Object.entries(ROUTE_PATH)) {
+  if (name === "food-detail" || name === "gc-donation-detail") continue;
+  if (!PATH_TO_NAME.has(path)) PATH_TO_NAME.set(path, name as Route["name"]);
+}
+
+/** URL path for the current location, with the deploy base stripped. */
+function pathFromLocation(): string {
+  const base = import.meta.env.BASE_URL ?? "/";
+  let raw = window.location.pathname;
+  if (base !== "/") {
+    const prefix = base.endsWith("/") ? base : `${base}/`;
+    if (raw.startsWith(prefix)) raw = `/${raw.slice(prefix.length)}`;
+    else if (`${raw}/` === prefix) raw = "/";
+  }
+  // "/gc/history/" and "/gc/history" are the same route; "/" stays "/".
+  if (raw.length > 1) raw = raw.replace(/\/+$/, "") || "/";
+  return raw || "/";
+}
+
+/** Deployable URL for a route: its path plus the query parameters that carry
+ * detail state (record id, public barcode, manager owner filter). Honours
+ * import.meta.env.BASE_URL so sub-path deployments keep working. */
+export function routeToPath(route: Route): string {
+  const params = new URLSearchParams();
+  switch (route.name) {
+    case "food-detail":
+    case "gc-donation-detail":
+      params.set("id", route.id);
+      break;
+    case "print-label":
+      if (route.id) params.set("id", route.id);
+      break;
+    case "public-carbon":
+      if (route.barcode) params.set("barcode", route.barcode);
+      break;
+    case "manager-inventory":
+      if (route.owner) params.set("owner", route.owner);
+      break;
+  }
+  const query = params.toString();
+  const path = query
+    ? `${ROUTE_PATH[route.name]}?${query}`
+    : ROUTE_PATH[route.name];
+  const base = import.meta.env.BASE_URL ?? "/";
+  if (base === "/") return path;
+  const root = base.endsWith("/") ? base.slice(0, -1) : base;
+  return `${root}${path}`;
+}
+
+/** Route for the current location. Unknown paths map to the Not Found page;
+ * detail routes are resolved from their ?id= query parameter (the list route
+ * owns the bare path). */
+export function routeFromLocation(): Route {
+  const path = pathFromLocation();
+  const params = new URLSearchParams(window.location.search);
+  const id = params.get("id") ?? undefined;
+
+  // Detail routes share the list path; the id picks the record.
+  if (path === ROUTE_PATH["gc-donation-detail"] && id) {
+    return { name: "gc-donation-detail", id };
+  }
+  if (path === ROUTE_PATH["food-detail"] && id) {
+    return { name: "food-detail", id };
+  }
+
+  const name = PATH_TO_NAME.get(path);
+  if (!name) return { name: "not-found" };
+  switch (name) {
+    case "print-label":
+      return { name: "print-label", id };
+    case "public-carbon":
+      return { name: "public-carbon", barcode: params.get("barcode") ?? undefined };
+    case "manager-inventory":
+      return { name: "manager-inventory", owner: params.get("owner") ?? undefined };
+    default:
+      return { name } as Route;
+  }
+}
+
 interface AppState {
   session: Session | null;
   route: Route;
@@ -140,7 +225,12 @@ interface AppState {
 }
 
 interface AppActions {
-  navigate: (route: Route) => void;
+  /**
+   * Navigate to a route and push it onto browser history so Back/Forward
+   * work. Pass { push: false } when the history entry already holds the
+   * target URL (popstate) — only the in-memory route changes.
+   */
+  navigate: (route: Route, opts?: { push?: boolean }) => void;
   signIn: (email: string, password: string) => { ok: boolean; error?: string };
   signOut: () => void;
   registerFood: (input: {
@@ -237,7 +327,9 @@ let idSeq = 1000;
 const nextId = (prefix: string) => `${prefix}-${++idSeq}`;
 
 export function StoreProvider({ children }: { children: ReactNode }) {
-  const [route, setRoute] = useState<Route>({ name: "landing" });
+  // Deep links and refreshes restore the route from the URL (vercel.json
+  // rewrites every path to index.html so the SPA boots on any path).
+  const [route, setRoute] = useState<Route>(() => routeFromLocation());
   const [session, setSession] = useState<Session | null>(null);
   const [food, setFood] = useState<FoodItem[]>(SEED_FOOD);
   const [compartments, setCompartments] =
@@ -257,8 +349,18 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const navigate = useCallback((next: Route) => {
+  const navigate = useCallback((next: Route, opts?: { push?: boolean }) => {
     setRoute(next);
+    if (opts?.push === false) return; // popstate: the entry already has the URL
+    const url = routeToPath(next);
+    if (window.location.pathname + window.location.search !== url) {
+      try {
+        window.history.pushState(null, "", url);
+      } catch {
+        // file:// or sandboxed contexts may reject history writes; routing
+        // still works because the route itself lives in memory.
+      }
+    }
     window.scrollTo({ top: 0, behavior: "instant" as ScrollBehavior });
   }, []);
 

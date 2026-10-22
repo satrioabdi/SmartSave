@@ -1,10 +1,11 @@
 /**
- * Application router. Routes live in memory (no hash/history dependency) so the
- * prototype works from file:// as well as a local dev server. Access is checked
- * with canAccess before any page renders.
+ * Application router. Routes live in React state and mirror themselves into
+ * browser history (pushState on navigate, so Back/Forward work) and are
+ * restored from the URL on load. Access is checked with canAccess before any
+ * page renders.
  */
 import { useEffect } from "react";
-import { useStore, homeFor, ROUTE_PATH, type Route } from "./lib/store";
+import { useStore, routeToPath, routeFromLocation, type Route } from "./lib/store";
 import { canAccess } from "./lib/nav";
 
 import {
@@ -181,34 +182,38 @@ function Screen() {
   }
 }
 
-/** Keeps the browser URL in sync with the in-memory route. */
+/**
+ * Keeps the browser URL in sync with the in-memory route.
+ *
+ * navigate() already pushes the URL, so this effect only fixes up routes that
+ * changed without navigation (sign in/out, post-login redirect). popstate
+ * (Back/Forward) maps the entry's URL back to a route and updates state
+ * without pushing a new entry.
+ */
 function useUrlSync() {
-  const { route, navigate, session } = useStore();
+  const { route, navigate } = useStore();
 
   useEffect(() => {
-    const path = ROUTE_PATH[route.name];
-    if (path && window.location.pathname !== path) {
-      window.history.replaceState(null, "", path);
+    const url = routeToPath(route);
+    if (window.location.pathname + window.location.search !== url) {
+      try {
+        window.history.replaceState(null, "", url);
+      } catch {
+        // file:// or sandboxed contexts may reject history writes.
+      }
     }
   }, [route]);
 
   useEffect(() => {
     const onPop = () => {
-      const name = window.location.pathname;
-      const match = (Object.keys(ROUTE_PATH) as Route["name"][]).find(
-        (k) => ROUTE_PATH[k] === name,
-      );
-      if (match) {
-        navigate({ name: match } as Route);
-      } else if (session) {
-        navigate(homeFor(session.role));
-      } else {
-        navigate({ name: "landing" });
-      }
+      const target = routeFromLocation();
+      // canAccess is enforced by Screen; navigating here only mirrors the
+      // URL the history entry already carries into state.
+      navigate(target, { push: false });
     };
     window.addEventListener("popstate", onPop);
     return () => window.removeEventListener("popstate", onPop);
-  }, [navigate, session]);
+  }, [navigate]);
 }
 
 export default function App() {
