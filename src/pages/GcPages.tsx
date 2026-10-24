@@ -1,6 +1,7 @@
 /** Green Community pages: dashboard, food waste, requests, received history. */
 import { useState } from "react";
 import { AppShell } from "../components/AppShell";
+import { Barcode } from "../components/Barcode";
 import {
   AnalyticsNote,
   Badge,
@@ -73,9 +74,10 @@ function WasteBankDetail() {
 }
 
 /**
- * The pickup-barcode detail line for surplus food. When the Manager approved
- * the request, a new barcode was issued and the record's previous barcode
- * was deactivated, so the requester collects the food with the new code.
+ * The pickup-barcode detail for surplus food. When the Manager approved the
+ * request, a new scannable barcode was issued and the record's previous
+ * barcode was deactivated, so the requester collects the food with the new
+ * code. The issued code is drawn as a real Code 128 barcode for handover.
  */
 function PickupDetail({
   item,
@@ -88,9 +90,10 @@ function PickupDetail({
   if (issued && issued.replaces.includes(item.barcode)) {
     return (
       <span>
-        <Badge variant="info">{issued.code}</Badge>
+        <Barcode code={issued.code} />
         <span className="cell-sub">
-          New pickup barcode — previous barcode {item.barcode} was deactivated.
+          Pickup barcode — show this at handover. Previous barcode {item.barcode}{" "}
+          was deactivated and no longer scans.
         </span>
       </span>
     );
@@ -259,9 +262,6 @@ export function GcDashboardPage() {
                           <StatusBadge label={r.status} variant={requestStatusVariant(r.status)} />
                         </td>
                         <td className="num-col">{formatMass(r.massG)}</td>
-                        <td>
-                          <Badge variant="neutral">Counted only when distributed</Badge>
-                        </td>
                       </tr>
                     ))}
                 </tbody>
@@ -293,6 +293,7 @@ export function GcDashboardPage() {
                   <th scope="col">Offered by</th>
                   <th scope="col">Created</th>
                   <QuantityHeader />
+                  <th scope="col">Estimated CO₂e</th>
                   <th scope="col" style={{ textAlign: "right" }}>Action</th>
                 </tr>
               </thead>
@@ -354,10 +355,10 @@ export function GcDonationsPage() {
   const mine = requests.filter((r) => r.submittedBy === session.name);
 
   return (
-    <AppShell title="Available Food Waste">
+    <AppShell title="Available Food Waste/Surplus Food">
       <PageHead
         eyebrow="Role: Green Community"
-        title="Available Food Waste"
+        title="Available Food Waste/Surplus Food"
         description="Browse donations offered by Users. Submit a request for anything you can still use — a Manager reviews and records the actual handover."
       />
 
@@ -384,6 +385,7 @@ export function GcDonationsPage() {
               <th scope="col">Offered by</th>
               <th scope="col">Created</th>
               <QuantityHeader />
+              <th scope="col">Estimated CO₂e</th>
               <th scope="col">Expiry status</th>
               <th scope="col">Detail</th>
               <th scope="col" style={{ textAlign: "right" }}>Action</th>
@@ -433,7 +435,11 @@ export function GcDonationsPage() {
                     )}
                   </td>
                   <td>
-                    {items.some((f) => expiryDeltaLabel(f.expiresAt).expired) ? (
+                    {/* An issued pickup barcode outranks the expiry branch —
+                        the collector always sees the code they will use. */}
+                    {already?.pickupBarcode && items.length > 0 ? (
+                      <PickupDetail item={items[0]} request={already} />
+                    ) : items.some((f) => expiryDeltaLabel(f.expiresAt).expired) ? (
                       <WasteBankDetail />
                     ) : items.length > 0 ? (
                       <PickupDetail item={items[0]} request={already} />
@@ -472,14 +478,24 @@ export function GcDonationsPage() {
           </tbody>
         </TableWrap>
 
-        <Notice title="Food waste or surplus food">
+        <Notice title="How to read the expiry status">
           Every listing states whether the food has already expired
           (<strong>food waste</strong>) or is still inside its shelf life
           (<strong>surplus food</strong>), with how many days past or before the
-          expiry date it sits. Expired food waste is managed by the Manager and
-          stored at the waste bank — delivery details follow via email. Surplus
-          food is collected with a pickup barcode issued at Manager approval;
-          issuing it deactivates the previous record barcode.
+          expiry date it sits.
+          <div className="stack stack--sm" style={{ marginTop: 8 }}>
+            <div>
+              <strong>Food waste (expired):</strong> managed by the Manager and
+              stored at the waste bank — delivery details follow via email. Not
+              collectible with a barcode.
+            </div>
+            <div>
+              <strong>Surplus food (not yet expired):</strong> collectible with
+              the pickup barcode issued at Manager approval. Issuing it
+              deactivates the record's previous barcode — the old code no longer
+              scans.
+            </div>
+          </div>
         </Notice>
 
         <Notice title="Requesting is not receiving">
@@ -546,6 +562,7 @@ export function GcDonationDetailPage({ id }: { id: string }) {
                   <th scope="col">Status</th>
                   <th scope="col">Expiry status</th>
                   <QuantityHeader />
+                  <th scope="col">Estimated CO₂e</th>
                 </tr>
               </thead>
               <tbody>
@@ -696,8 +713,23 @@ export function GcDonationDetailPage({ id }: { id: string }) {
 
 /* --------------------------- My requests ----------------------------- */
 
+/** CO₂e for a request's donation, from the items' Distributed events. */
+function requestCo2e(
+  items: FoodItem[],
+  events: { foodId: string; type: string; co2eKg: number | null }[],
+): { kind: "value"; kg: number } | { kind: "none" } | { kind: "pending" } {
+  const ids = new Set(items.map((f) => f.id));
+  const distributed = events.filter(
+    (e) => ids.has(e.foodId) && e.type === "Distributed",
+  );
+  if (distributed.length === 0) return { kind: "pending" };
+  const kg = distributed.reduce((s, e) => s + (e.co2eKg ?? 0), 0);
+  if (kg <= 0) return { kind: "none" };
+  return { kind: "value", kg: Math.round(kg * 100) / 100 };
+}
+
 export function GcRequestsPage() {
-  const { session, requests, donations, food, navigate } = useStore();
+  const { session, requests, donations, food, events, navigate } = useStore();
   const [status, setStatus] = useState("All");
 
   if (!session) return null;
@@ -737,7 +769,9 @@ export function GcRequestsPage() {
               <th scope="col">Status</th>
               <th scope="col">Submitted</th>
               <th scope="col">Decided</th>
+              <th scope="col">Locker record</th>
               <QuantityHeader />
+              <th scope="col">Estimated CO₂e</th>
               <th scope="col">Contact (address · email)</th>
               <th scope="col">Expiry status</th>
               <th scope="col">Detail</th>
@@ -745,18 +779,23 @@ export function GcRequestsPage() {
             </tr>
           </thead>
           <tbody>
-            {rows.length === 0 && <TableEmpty colSpan={10} text="No requests in this status." />}
+            {rows.length === 0 && <TableEmpty colSpan={11} text="No requests in this status." />}
             {rows.map((r) => {
               const donation = donations.find((d) => d.id === r.donationId);
               const items = donation
                 ? food.filter((f) => donation.foodIds.includes(f.id))
                 : [];
               const expiry = donationExpiry(items);
+              const co2e = requestCo2e(items, events);
+              const lockerLabel = items.find((f) => f.compartmentLabel)?.compartmentLabel;
               return (
                 <tr key={r.id}>
                   <td>
                     <span className="cell-strong">{r.label}</span>
-                    <span className="cell-sub">{r.id} · {r.donationId}</span>
+                    <span className="cell-sub">
+                      {r.id} · {r.donationId}
+                      {items[0] ? ` · ${items[0].id}` : ""}
+                    </span>
                   </td>
                   <td>
                     <StatusBadge label={r.status} variant={requestStatusVariant(r.status)} />
@@ -765,13 +804,27 @@ export function GcRequestsPage() {
                   <td className="num-col">
                     {r.decidedAt ? formatDateTime(r.decidedAt) : "—"}
                   </td>
+                  <td className="num-col">
+                    {lockerLabel ? (
+                      <span>
+                        <span className="cell-strong">{lockerLabel}</span>
+                        <span className="cell-sub">{items[0]?.id}</span>
+                      </span>
+                    ) : items[0] ? (
+                      <span className="cell-sub">{items[0].id}</span>
+                    ) : (
+                      <span className="tiny">—</span>
+                    )}
+                  </td>
                   <td className="num-col">{formatMass(r.massG)}</td>
                   <td>
-                    <Badge variant={r.status === "Completed" ? "neutral" : "info"}>
-                      {r.status === "Completed"
-                        ? "Counted once when distributed"
-                        : "Not counted until distributed"}
-                    </Badge>
+                    {co2e.kind === "value" ? (
+                      <CarbonValue value={{ kind: "value", kg: co2e.kg }} />
+                    ) : co2e.kind === "pending" ? (
+                      <Badge variant="neutral">Not counted until distributed</Badge>
+                    ) : (
+                      <Badge variant="warning">Emission factor not configured</Badge>
+                    )}
                   </td>
                   <td className="tiny">
                     {r.contactAddress ?? "—"}
@@ -781,7 +834,12 @@ export function GcRequestsPage() {
                     {expiry.worst ? <ExpiryBadge item={expiry.worst} /> : <span className="tiny">—</span>}
                   </td>
                   <td>
-                    {items.some((f) => expiryDeltaLabel(f.expiresAt).expired) ? (
+                    {/* An issued pickup barcode outranks the expiry branch:
+                        the handover was arranged while the food was still
+                        surplus, so the collector always sees the code used. */}
+                    {r.pickupBarcode && items.length > 0 ? (
+                      <PickupDetail item={items[0]} request={r} />
+                    ) : items.some((f) => expiryDeltaLabel(f.expiresAt).expired) ? (
                       <WasteBankDetail />
                     ) : items.length > 0 ? (
                       <PickupDetail item={items[0]} request={r} />
@@ -873,6 +931,7 @@ export function GcHistoryPage() {
                   <th scope="col">Donation</th>
                   <th scope="col">Completed</th>
                   <QuantityHeader />
+                  <th scope="col">Estimated CO₂e</th>
                 </tr>
               </thead>
               <tbody>

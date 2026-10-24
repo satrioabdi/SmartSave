@@ -300,11 +300,31 @@ const UNMAPPED_SUBCATEGORIES = new Set([
 
 const UNMAPPED_SUBTYPE = "Mixed dish";
 
+/**
+ * Demo density conversions for liter-based source factors (§19.2 allows a
+ * calculation only with an approved conversion; these demo values make the
+ * estimate computable instead of permanently "Unable to calculate").
+ * mass (kg) = liters ⇒ the factor applies directly per kg of liquid.
+ */
+const LITER_DENSITY: Record<string, number> = {
+  "Cow's Milk": 1.03, // pasteurised cow's milk ≈ 1.03 kg/L
+  "Soy Milk": 1.02,
+  "Barley Beer": 1.01,
+  "Grape Wine": 0.99,
+  "Palm Oil": 0.92,
+  "Soybean Oil": 0.92,
+  "Olive Oil": 0.92,
+  "Rapeseed/Canola Oil": 0.92,
+  "Sunflower Oil": 0.92,
+};
+
 export interface FactorResolution {
   state: FactorState;
   factor?: EmissionFactor;
   /** Human-readable reason shown in the calculation detail (§6.2). */
   reason: string;
+  /** Demo density used when a liter factor is converted to a kg mass. */
+  densityKgPerLiter?: number;
 }
 
 /**
@@ -371,6 +391,15 @@ export function resolveFactor(
   }
 
   if (factor.unit !== "kg CO₂e/kg food") {
+    const density = LITER_DENSITY[key] ?? LITER_DENSITY[subcategory];
+    if (density) {
+      return {
+        state: { kind: "valid" },
+        factor,
+        densityKgPerLiter: density,
+        reason: `The source factor is per liter; the demo converts it with an approved density of ${density} kg per liter, so the estimate can be calculated.`,
+      };
+    }
     return {
       state: { kind: "unit-mismatch" },
       factor,

@@ -35,6 +35,7 @@ import {
   IconSearch,
 } from "../components/icons";
 import { useStore } from "../lib/store";
+import { Barcode } from "../components/Barcode";
 import {
   bucketValue,
   chartBuckets,
@@ -1130,6 +1131,7 @@ export function ManagerRequestsPage() {
               <th scope="col">Submitted</th>
               <th scope="col">Address · Email</th>
               <QuantityHeader />
+              <th scope="col">Impact</th>
               <th scope="col" style={{ textAlign: "right" }}>Decision</th>
             </tr>
           </thead>
@@ -1178,6 +1180,8 @@ export function ManagerRequestsPage() {
                             Reject
                           </button>
                         </>
+                      ) : r.pickupBarcode ? (
+                        <Barcode code={r.pickupBarcode.code} />
                       ) : (
                         <span className="tiny">{r.reason ?? "—"}</span>
                       )}

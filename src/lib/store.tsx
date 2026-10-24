@@ -506,8 +506,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         );
         let co2eKg: number | null = null;
         if (factor.state.kind === "valid" && factor.factor) {
+          // Liter-based factors carry a demo density: kg → liters first.
+          const baseKg = factor.densityKgPerLiter
+            ? item.massG / 1000 / factor.densityKgPerLiter
+            : item.massG / 1000;
           co2eKg =
-            Math.round((item.massG / 1000) * factor.factor.factorP90 * 100) / 100;
+            Math.round(baseKg * factor.factor.factorP90 * 100) / 100;
         }
         created = {
           id: nextId("CIE"),

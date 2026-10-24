@@ -9,7 +9,7 @@ import type { CarbonValue, FactorState, Period } from "./types";
 export const FORMULA_TEXT = "(Food Mass (g) ÷ 1000) × Emission Factor";
 
 export const ANALYTICS_NOTE =
-  "Estimate based on the configured emission factor; not a direct measurement.";
+  "Estimate based on the configured emission factor; not a direct measurement. Liter-based source factors are converted with a demo density before applying.";
 
 export const CONSUMPTION_NOTE =
   "Food taken by a User is assumed to be consumed; this is not proof of actual consumption.";
@@ -48,14 +48,23 @@ export function formatFactor(n: number): string {
 /**
  * Compute the CO₂e value for a mass given a factor resolution.
  * Returns a CarbonValue — never a bare zero for unusable factors.
+ *
+ * A liter-based factor with a demo density conversion computes as
+ * kg-equivalent: mass kg × density gives liters, then × factor per liter.
  */
 export function computeCarbon(
   massG: number,
   resolution: FactorResolution,
 ): CarbonValue {
   if (resolution.state.kind === "valid" && resolution.factor) {
-    const kg = gramsToKg(massG) * resolution.factor.factorP90;
-    return { kind: "value", kg: round2(kg) };
+    const kg = gramsToKg(massG);
+    const density = resolution.densityKgPerLiter;
+    const liters = density ? kg / density : null;
+    const value =
+      liters !== null
+        ? liters * resolution.factor.factorP90
+        : kg * resolution.factor.factorP90;
+    return { kind: "value", kg: round2(value) };
   }
   if (resolution.state.kind === "unit-mismatch") {
     return { kind: "unable" };

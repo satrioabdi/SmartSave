@@ -84,7 +84,11 @@ export function navFor(role: Role): NavGroup[] {
       {
         eyebrow: "Donations",
         items: [
-          { label: "Available Food Waste", route: { name: "gc-donations" }, icon: IconGift },
+          {
+            label: "Available Food Waste/Surplus Food",
+            route: { name: "gc-donations" },
+            icon: IconGift,
+          },
           { label: "My Requests / Request Status", route: { name: "gc-requests" }, icon: IconHand },
                     {
             label: "Received Surplus Food/Food waste History",

@@ -274,6 +274,14 @@ export const SEED_REQUESTS: GcRequest[] = [
     decidedAt: iso(-7 * DAY),
     contactEmail: "green@smartsave.demo",
     contactAddress: "Jl. Raya Keputih No. 45, Sukolilo, Surabaya, Jawa Timur 60111",
+    // The pickup barcode the Manager issued at approval — the requester
+    // collected the Apple box with it; the record's original barcode (SS-1051)
+    // was deactivated at that moment.
+    pickupBarcode: {
+      code: "SS-PK-2301",
+      issuedAt: iso(-7 * DAY),
+      replaces: ["SS-1051"],
+    },
   },
   {
     id: "RQ-302",
@@ -373,13 +381,14 @@ export const SEED_EVENTS: CarbonImpactEvent[] = [
     foodId: "FD-1047",
     label: "Cow's milk pouches",
     massG: 2500,
-    factorP90: null,
+    factorP90: 4.8,
     unit: "kg CO₂e/liter",
-    co2eKg: null,
-    factorState: { kind: "unit-mismatch" },
+    // 2.5 kg ÷ 1.03 kg/L ≈ 2.427 L × 4.8 = 11.65 kg CO₂e (demo density).
+    co2eKg: 11.65,
+    factorState: { kind: "valid" },
     occurredAt: iso(-6 * HOUR),
     methodologyVersion: "WRI-ID-2018 p10–12 / p90",
-    sourceLabel: "Susu sapi pasteurisasi (unit sumber: 1 liter)",
+    sourceLabel: "Susu sapi pasteurisasi (unit sumber: 1 liter; demo density 1.03 kg/L)",
   },
 ];
 
