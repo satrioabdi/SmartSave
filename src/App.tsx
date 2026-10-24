@@ -40,6 +40,7 @@ import {
   GcDonationsPage,
   GcDonationDetailPage,
   GcRequestsPage,
+  GcPickupBarcodePage,
   GcHistoryPage,
 } from "./pages/GcPages";
 import {
@@ -166,6 +167,8 @@ function Screen() {
       return <GcDonationDetailPage id={route.id} />;
     case "gc-requests":
       return <GcRequestsPage />;
+    case "gc-pickup-barcode":
+      return <GcPickupBarcodePage id={route.id} />;
     case "gc-history":
       return <GcHistoryPage />;
 

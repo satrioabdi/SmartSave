@@ -156,6 +156,7 @@ export function ProfilePage() {
                         ? [
                             { label: "Browse", value: "Available food waste" },
                             { label: "Submit", value: "Requests and track their status" },
+                            { label: "Show", value: "Pickup barcode for an approved request" },
                             { label: "View", value: "Received surplus food/food waste history" },
                             { label: "Cannot", value: <Badge variant="danger">Approve requests or edit rules</Badge> },
                           ]

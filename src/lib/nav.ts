@@ -90,6 +90,7 @@ export function navFor(role: Role): NavGroup[] {
             icon: IconGift,
           },
           { label: "My Requests / Request Status", route: { name: "gc-requests" }, icon: IconHand },
+          { label: "Pickup Barcode", route: { name: "gc-pickup-barcode" }, icon: IconBarcode },
                     {
             label: "Received Surplus Food/Food waste History",
             route: { name: "gc-history" },
@@ -199,6 +200,7 @@ export function canAccess(role: Role | null, route: Route): boolean {
     "gc-donations",
     "gc-donation-detail",
     "gc-requests",
+    "gc-pickup-barcode",
     "gc-history",
     "profile",
   ];

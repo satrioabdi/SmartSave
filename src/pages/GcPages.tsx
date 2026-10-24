@@ -435,10 +435,18 @@ export function GcDonationsPage() {
                     )}
                   </td>
                   <td>
-                    {/* An issued pickup barcode outranks the expiry branch —
-                        the collector always sees the code they will use. */}
+                    {/* Link to the Pickup Barcode page instead of drawing a
+                        barcode inside the cell. */}
                     {already?.pickupBarcode && items.length > 0 ? (
-                      <PickupDetail item={items[0]} request={already} />
+                      <button
+                        type="button"
+                        className="button button--secondary button--sm"
+                        onClick={() =>
+                          navigate({ name: "gc-pickup-barcode", id: already.id })
+                        }
+                      >
+                        Pickup barcode
+                      </button>
                     ) : items.some((f) => expiryDeltaLabel(f.expiresAt).expired) ? (
                       <WasteBankDetail />
                     ) : items.length > 0 ? (
@@ -611,6 +619,20 @@ export function GcDonationDetailPage({ id }: { id: string }) {
                 food. The previous record barcode(s){" "}
                 {myRequest.pickupBarcode.replaces.join(", ")} were deactivated
                 — collect the food with the new code.
+                <div style={{ marginTop: 8 }}>
+                  <button
+                    type="button"
+                    className="button button--secondary button--sm"
+                    onClick={() =>
+                      navigate({
+                        name: "gc-pickup-barcode",
+                        id: myRequest.id,
+                      })
+                    }
+                  >
+                    Open Pickup Barcode page
+                  </button>
+                </div>
               </Notice>
             )}
             <AnalyticsNote />
@@ -835,11 +857,19 @@ export function GcRequestsPage() {
                     {expiry.worst ? <ExpiryBadge item={expiry.worst} /> : <span className="tiny">—</span>}
                   </td>
                   <td>
-                    {/* An issued pickup barcode outranks the expiry branch:
-                        the handover was arranged while the food was still
-                        surplus, so the collector always sees the code used. */}
+                    {/* The scannable code lives on the Pickup Barcode page —
+                        the cell only links to it. An issued barcode outranks
+                        the expiry branch. */}
                     {r.pickupBarcode && items.length > 0 ? (
-                      <PickupDetail item={items[0]} request={r} />
+                      <button
+                        type="button"
+                        className="button button--secondary button--sm"
+                        onClick={() =>
+                          navigate({ name: "gc-pickup-barcode", id: r.id })
+                        }
+                      >
+                        Pickup barcode
+                      </button>
                     ) : items.some((f) => expiryDeltaLabel(f.expiresAt).expired) ? (
                       <WasteBankDetail />
                     ) : items.length > 0 ? (
@@ -854,6 +884,185 @@ export function GcRequestsPage() {
             })}
           </tbody>
         </TableWrap>
+      </div>
+    </AppShell>
+  );
+}
+
+/* --------------------------- Pickup barcode --------------------------- */
+
+/**
+ * Pickup-barcode page for the Green Community, mirroring the User's
+ * "Barcode / Print Label" page: one request selected from
+ * My Requests / Request Status, one full-size scannable label — not a
+ * barcode squeezed into a table cell.
+ */
+export function GcPickupBarcodePage({ id }: { id?: string }) {
+  const { session, requests, food, donations, navigate } = useStore();
+  const [selected, setSelected] = useState(id ?? "");
+
+  if (!session) return null;
+  const mine = requests.filter((r) => r.submittedBy === session.name);
+  // Deep-linked id wins; otherwise default to the newest request that
+  // already carries a pickup barcode, so the page opens ready to print.
+  const initial =
+    mine.find((r) => r.id === (selected || id)) ??
+    mine.find((r) => r.pickupBarcode) ??
+    mine[0];
+  const current = mine.find((r) => r.id === (selected || id)) ?? initial;
+
+  if (mine.length === 0) {
+    return (
+      <AppShell title="Pickup Barcode">
+        <PageHead
+          eyebrow="Role: Green Community"
+          title="Pickup Barcode"
+          description="The scannable code for each of your approved requests."
+        />
+        <EmptyState
+          title="No requests yet"
+          hint="Request an open donation — after Manager approval the pickup barcode appears here."
+        />
+        <div className="button-row" style={{ marginTop: 14 }}>
+          <button
+            type="button"
+            className="button button--secondary"
+            onClick={() => navigate({ name: "gc-donations" })}
+          >
+            Browse donations
+          </button>
+        </div>
+      </AppShell>
+    );
+  }
+
+  const donation = current
+    ? donations.find((d) => d.id === current.donationId)
+    : undefined;
+  const items = donation
+    ? food.filter((f) => donation.foodIds.includes(f.id))
+    : [];
+  const issued = current?.pickupBarcode;
+
+  return (
+    <AppShell title="Pickup Barcode">
+      <PageHead
+        eyebrow="Role: Green Community"
+        title="Pickup Barcode"
+        description="The barcode that matches each request in My Requests / Request Status. Show the code for the selected request at handover."
+      />
+
+      <div className="stack">
+        <SimulationBanner>
+          Barcodes are generated by the demo (Code 128). Scanning is exercised
+          on the Scan Barcode page; the pickup code replaces the record's
+          previous barcode at Manager approval.
+        </SimulationBanner>
+
+        <div className="label-layout">
+          <Panel title="Select a request" description="From My Requests / Request Status">
+            <div className="control">
+              <label htmlFor="pickup-select">Request</label>
+              <select
+                id="pickup-select"
+                value={current?.id ?? ""}
+                onChange={(e) => setSelected(e.target.value)}
+              >
+                {mine.map((r) => (
+                  <option key={r.id} value={r.id}>
+                    {r.id} — {r.label} ({r.status})
+                  </option>
+                ))}
+              </select>
+              <span className="control-hint">
+                A pickup barcode is issued when the Manager approves the
+                request; it stays valid for the completed handover.
+              </span>
+            </div>
+
+            {current && (
+              <SummaryList
+                rows={[
+                  { label: "Request", value: `${current.id} · ${current.status}` },
+                  { label: "Donation", value: `${current.donationId}${donation ? ` · ${donation.status}` : ""}` },
+                  {
+                    label: "Food record",
+                    value: items[0] ? `${items[0].id} · ${items[0].name}` : "—",
+                  },
+                  { label: "Quantity", value: formatMass(current.massG) },
+                ]}
+              />
+            )}
+
+            {current && !issued && (
+              <Notice title="No pickup barcode yet">
+                {current.status === "Pending"
+                  ? "This request is waiting for Manager review — the barcode is issued at approval."
+                  : current.status === "Rejected"
+                    ? "This request was rejected, so no pickup barcode was issued."
+                    : "This request has no pickup barcode recorded."}
+              </Notice>
+            )}
+
+            {issued && (
+              <Notice title="Replaced barcode">
+                The record's previous barcode{" "}
+                <strong>{issued.replaces.join(", ")}</strong> was deactivated
+                when this pickup barcode was issued — the old code no longer
+                scans.
+              </Notice>
+            )}
+          </Panel>
+
+          <div className="stack stack--sm">
+            {current && issued ? (
+              <div className="label-card">
+                <div className="stack stack--sm">
+                  <span className="brand" style={{ fontSize: 18 }}>
+                    <span className="brand-mark" style={{ width: 22, height: 22, fontSize: 11 }}>
+                      S
+                    </span>
+                    SmartSave
+                  </span>
+                  <div>
+                    <div className="label-name">{current.label}</div>
+                    <div className="label-meta" style={{ marginTop: 8 }}>
+                      <span>Request: {current.id}</span>
+                      <span>Donation: {current.donationId}</span>
+                      {items[0] && <span>Food ID: {items[0].id}</span>}
+                      <span>Quantity: {formatMass(current.massG)}</span>
+                      <span>Status: {current.status}</span>
+                    </div>
+                  </div>
+                  <Barcode code={issued.code} />
+                  <p className="contribution-message">
+                    Pickup barcode — show this at handover.
+                    {donation?.allocatedTo ? ` Allocated to ${donation.allocatedTo}.` : ""}
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <EmptyState
+                title="No barcode for this request"
+                hint={
+                  current?.status === "Rejected"
+                    ? "Rejected requests never receive a pickup barcode."
+                    : "The scannable label appears here as soon as the Manager approves the request."
+                }
+              />
+            )}
+          </div>
+        </div>
+
+        <div className="button-row">
+          <button
+            type="button"
+            className="button button--secondary"
+            onClick={() => navigate({ name: "gc-requests" })}
+          >
+            Open My Requests / Request Status
+          </button>
+        </div>
       </div>
     </AppShell>
   );

@@ -79,6 +79,7 @@ export type Route =
   | { name: "gc-donations" }
   | { name: "gc-donation-detail"; id: string }
   | { name: "gc-requests" }
+  | { name: "gc-pickup-barcode"; id?: string }
   | { name: "gc-history" }
   | { name: "unauthorized" }
   | { name: "not-found" };
@@ -120,6 +121,7 @@ export const ROUTE_PATH: Record<Route["name"], string> = {
   "gc-donations": "/gc/donations",
   "gc-donation-detail": "/gc/donations",
   "gc-requests": "/gc/requests",
+  "gc-pickup-barcode": "/gc/pickup-barcode",
   "gc-history": "/gc/history",
   unauthorized: "/unauthorized",
   "not-found": "/not-found",
@@ -163,6 +165,9 @@ export function routeToPath(route: Route): string {
     case "print-label":
       if (route.id) params.set("id", route.id);
       break;
+    case "gc-pickup-barcode":
+      if (route.id) params.set("id", route.id);
+      break;
     case "public-carbon":
       if (route.barcode) params.set("barcode", route.barcode);
       break;
@@ -201,6 +206,8 @@ export function routeFromLocation(): Route {
   switch (name) {
     case "print-label":
       return { name: "print-label", id };
+    case "gc-pickup-barcode":
+      return { name: "gc-pickup-barcode", id };
     case "public-carbon":
       return { name: "public-carbon", barcode: params.get("barcode") ?? undefined };
     case "manager-inventory":
