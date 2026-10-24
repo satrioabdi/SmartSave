@@ -932,9 +932,12 @@ textarea {
   background: var(--blue-soft);
   color: var(--blue);
 }
-.notice strong,
-.simulation-banner strong,
-.analytics-note strong {
+/* Only the notice TITLE (a direct child) stacks on its own line. A <strong>
+   inside the notice body is mid-sentence emphasis and must stay inline —
+   blocking it split sentences like "( food waste )" across lines. */
+.notice > strong,
+.simulation-banner > strong,
+.analytics-note > strong {
   display: block;
   font-weight: 600;
   margin-bottom: 3px;

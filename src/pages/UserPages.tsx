@@ -1128,9 +1128,7 @@ export function PrintLabelPage() {
       <div className="stack">
         <SimulationBanner>
           Print output is simulated on screen. To scan this label with your
-          camera, open{" "}
-          <strong style={{ display: "inline" }}>Scan Barcode (camera)</strong>{" "}
-          in the sidebar.
+          camera, open <strong>Scan Barcode (camera)</strong> in the sidebar.
         </SimulationBanner>
 
         <div className="label-layout">

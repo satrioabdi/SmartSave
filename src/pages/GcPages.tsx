@@ -479,21 +479,22 @@ export function GcDonationsPage() {
         </TableWrap>
 
         <Notice title="How to read the expiry status">
-          Every listing states whether the food has already expired
-          (<strong>food waste</strong>) or is still inside its shelf life
-          (<strong>surplus food</strong>), with how many days past or before the
-          expiry date it sits.
-          <div className="stack stack--sm" style={{ marginTop: 8 }}>
+          <div className="stack stack--sm">
             <div>
-              <strong>Food waste (expired):</strong> managed by the Manager and
-              stored at the waste bank — delivery details follow via email. Not
-              collectible with a barcode.
+              The expiry badge on every listing states which of the two the
+              food is, and how many days past or before the expiry date it
+              sits.
             </div>
             <div>
-              <strong>Surplus food (not yet expired):</strong> collectible with
+              <strong>Food waste — expired:</strong> managed by the Manager and
+              stored at the waste bank. Delivery details follow via email; it
+              is not collectible with a barcode.
+            </div>
+            <div>
+              <strong>Surplus food — not yet expired:</strong> collectible with
               the pickup barcode issued at Manager approval. Issuing it
-              deactivates the record's previous barcode — the old code no longer
-              scans.
+              deactivates the record's previous barcode — the old code no
+              longer scans.
             </div>
           </div>
         </Notice>
