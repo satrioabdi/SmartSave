@@ -8,6 +8,10 @@ dist/
 
 # local test screenshots
 WhatsApp Image*.jpeg
+Screenshot *.png
+
+# local CDP smoke-test scratch folder
+.smoke-test/
 
 # local downloads and test scratch folders
 GoTech-*/
