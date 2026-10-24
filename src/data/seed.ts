@@ -115,6 +115,10 @@ const SEED: SeedFood[] = [
   { id: "FD-1061", name: "Fresh beef", category: "Prepared and Cooked Food", subcategory: "Protein", subtype: "Beef", massG: 1500, storedAt: iso(-20 * HOUR), status: "Stored", owner: "u-1", ownerLabel: "Nadia Prameswari", photoLabel: "fresh-beef.jpg", freshness: "fit", verified: "Pending" },
   { id: "FD-1062", name: "Red apples", category: "Fruit", subcategory: "Apple", massG: 3600, storedAt: iso(-2 * DAY), status: "Available for Donation", owner: "u-1", ownerLabel: "Nadia Prameswari", photoLabel: "red-apples.jpg", freshness: "fit", verified: "Approved" },
   { id: "FD-1063", name: "Mixed rice meal tray", category: "Prepared and Cooked Food", subcategory: "Carbohydrate", subtype: "Mixed dish", massG: 1800, storedAt: iso(-26 * HOUR), status: "Collected", owner: "u-1", ownerLabel: "Nadia Prameswari", photoLabel: "rice-trays.jpg", freshness: "fit", verified: "Approved" },
+  // Expired more than one day ago → demonstrates the hand-over branch: the
+  // record sits in the Manager's waste-bank list and is no longer
+  // collectible or donatable by its owner.
+  { id: "FD-1064", name: "Water spinach bundle", category: "Vegetables", subcategory: "Cabbage and Similar", massG: 2300, storedAt: iso(-7 * DAY), status: "Expired", owner: "u-1", ownerLabel: "Nadia Prameswari", photoLabel: "water-spinach.jpg", freshness: "fit" },
 ];
 
 function buildFood(): FoodItem[] {
@@ -268,7 +272,9 @@ export const SEED_REQUESTS: GcRequest[] = [
     donationId: "DN-201",
     label: "Apple box",
     massG: 5200,
-    status: "Completed",
+    // Manager recorded the handover — the mass was distributed to the
+    // requester, so the request closes as Distributed.
+    status: "Distributed",
     submittedBy: "Rumah Pangan Hijau",
     submittedAt: iso(-7.5 * DAY),
     decidedAt: iso(-7 * DAY),
@@ -424,6 +430,16 @@ export const SEED_NOTIFICATIONS: NotificationEvent[] = [
     delivery: "Delivered",
   },
   {
+    id: "NT-06",
+    kind: "expired-followup",
+    title: "Handed over to the Manager — Water spinach bundle",
+    body: "FD-1064 expired more than one day ago with no response. The record has been handed over to the Manager and is stored at the waste bank.",
+    foodId: "FD-1064",
+    createdAt: iso(-6 * DAY),
+    read: true,
+    delivery: "Delivered",
+  },
+  {
     id: "NT-04",
     kind: "system",
     title: "Shelf-life rule updated",
@@ -445,11 +461,12 @@ export const SEED_NOTIFICATIONS: NotificationEvent[] = [
 
 export const SEED_LOGS: ActivityLog[] = [
   { id: "AL-01", at: iso(-2.5 * DAY), actor: "Nadia Prameswari", action: "Collected food", target: "FD-1049", detail: "Massa 1,800 g recorded; consumption assumed, not proven." },
-  { id: "AL-02", at: iso(-7 * DAY), actor: "Bagas Wicaksono", action: "Distributed donation", target: "DN-201", detail: "5,200 g delivered to Rumah Pangan Hijau." },
+  { id: "AL-02", at: iso(-7 * DAY), actor: "Bagas Wicaksono", action: "Distributed donation", target: "DN-201", detail: "5,200 g delivered to Rumah Pangan Hijau; request RQ-301 set to Distributed." },
   { id: "AL-03", at: iso(-7 * DAY), actor: "Bagas Wicaksono", action: "Approved request", target: "RQ-301", detail: "Allocation confirmed for Green Community." },
   { id: "AL-04", at: iso(-30 * HOUR), actor: "Bagas Wicaksono", action: "Changed shelf-life rule", target: "Vegetables", detail: "Demo rule remains 5 days; snapshot preserved on historical rows." },
   { id: "AL-05", at: iso(-1.5 * DAY), actor: "Bagas Wicaksono", action: "Rejected request", target: "RQ-303", detail: "Donation was cancelled before allocation." },
   { id: "AL-06", at: iso(-20 * HOUR), actor: "Nadia Prameswari", action: "Created donation", target: "DN-203", detail: "Cassava roots 2,100 g offered to Green Community." },
   { id: "AL-07", at: iso(-4 * HOUR), actor: "system", action: "Notification delivered", target: "NT-01", detail: "Website notification only; no external channel." },
   { id: "AL-08", at: iso(-3 * HOUR), actor: "Sinta Larasati", action: "Collected food", target: "FD-1046", detail: "Massa 4,400 g recorded." },
+  { id: "AL-09", at: iso(-6 * DAY), actor: "Bagas Wicaksono", action: "Handed over to waste bank", target: "FD-1064", detail: "Expired more than one day without a response — 2,300 g recorded into the Manager's waste-bank list; no impact event." },
 ];

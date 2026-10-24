@@ -27,9 +27,12 @@ import {
 import {
   donationStatusVariant,
   effectiveFoodStatus,
+  expiredWithinGrace,
   foodStatusVariant,
   formatDate,
   formatDateTime,
+  isExpired,
+  ownerActionOpen,
 } from "../lib/format";
 
 /* --------------------------- Food Donation ---------------------------- */
@@ -43,10 +46,13 @@ export function FoodDonationPage() {
 
   if (!session) return null;
 
+  // Stored records are eligible; records expired less than one hour ago are
+  // also offered — the owner may still donate during the grace window.
   const eligible = food.filter(
     (f) =>
       f.ownerUserId === session.userId &&
-      effectiveFoodStatus(f.status, f.expiresAt) === "Stored",
+      f.status === "Stored" &&
+      (!isExpired(f.expiresAt) || expiredWithinGrace(f.expiresAt)),
   );
   const chosen = eligible.filter((f) => selected.includes(f.id));
   const massG = chosen.reduce((s, f) => s + f.massG, 0);
@@ -103,17 +109,21 @@ export function FoodDonationPage() {
         </SimulationBanner>
 
         <div className="form-layout">
-          <Panel title="Select food to donate" description="Only records with status Stored are eligible.">
+          <Panel
+            title="Select food to donate"
+            description="Stored records are eligible — plus records expired less than one hour ago (grace window)."
+          >
             <div className="stack stack--sm">
               {eligible.length === 0 && (
                 <EmptyState
                   title="No stored food available"
-                  hint="Register food first — expired or already donated items cannot be offered."
+                  hint="Register food first — records expired beyond the grace window or already donated cannot be offered."
                 />
               )}
               {eligible.map((f) => {
                 const res = resolveForItem(f.category, f.subcategory, f.subtype);
                 const ok = res.state.kind === "valid";
+                const grace = isExpired(f.expiresAt) && expiredWithinGrace(f.expiresAt);
                 const checked = selected.includes(f.id);
                 return (
                   <label
@@ -138,9 +148,17 @@ export function FoodDonationPage() {
                     <span style={{ flex: 1 }}>
                       <strong style={{ display: "block", color: "var(--navy)" }}>
                         {f.name}
+                        {grace && (
+                          <span style={{ marginLeft: 8 }}>
+                            <Badge variant="warning">Expired — grace window</Badge>
+                          </span>
+                        )}
                       </strong>
                       <span className="tiny">
                         {f.id} · {formatMass(f.massG)} · expires {formatDateTime(f.expiresAt)}
+                        {grace
+                          ? " · still donatable inside the one-hour grace window"
+                          : ""}
                       </span>
                       <span style={{ display: "block", marginTop: 6 }}>
                         {ok ? (
@@ -370,8 +388,10 @@ export function RetrievalPage() {
   if (!session) return null;
   const mine = food.filter((f) => f.ownerUserId === session.userId);
   const rows = mine.filter((f) => {
-    const eff = effectiveFoodStatus(f.status, f.expiresAt);
-    if (filter === "Collectable") return eff === "Stored";
+    // Grace policy: Stored inside its shelf life, or expired less than one
+    // hour ago, is still collectable by the owner. Beyond the hour the
+    // record has been handed over to the Manager.
+    if (filter === "Collectable") return ownerActionOpen(f.status, f.expiresAt);
     if (filter === "Recorded") return f.status === "Collected";
     return true;
   });
@@ -425,8 +445,11 @@ export function RetrievalPage() {
             )}
             {rows.map((f) => {
               const eff = effectiveFoodStatus(f.status, f.expiresAt);
-              // Flow diagram 12: only `Stored` may transition to `Collected`.
-              const blocked = eff !== "Stored";
+              // Flow diagram 12: only `Stored` transitions to `Collected`.
+              // The one-hour grace window after expiry keeps the record
+              // collectable; beyond it the Manager holds the record.
+              const collectable = ownerActionOpen(f.status, f.expiresAt);
+              const grace = eff === "Expired" && expiredWithinGrace(f.expiresAt);
               const ev = events.find((e) => e.foodId === f.id && e.type === "Collected");
               return (
                 <tr key={f.id}>
@@ -446,6 +469,12 @@ export function RetrievalPage() {
                       label={eff}
                       variant={foodStatusVariant(eff)}
                     />
+                    {grace && (
+                      <span className="cell-sub">
+                        Grace window — still collectable for another{" "}
+                        {Math.max(1, Math.round((new Date(f.expiresAt).getTime() + 3600000 - Date.now()) / 60000))} min
+                      </span>
+                    )}
                   </td>
                   <td className="num-col">{formatDateTime(f.expiresAt)}</td>
                   <td className="num-col">{formatMass(f.massG)}</td>
@@ -466,22 +495,22 @@ export function RetrievalPage() {
                     <div className="table-actions">
                       <button
                         type="button"
-                        className={`button button--sm ${blocked ? "button--ghost" : "button--primary"}`}
-                        disabled={blocked}
+                        className={`button button--sm ${collectable ? "button--primary" : "button--ghost"}`}
+                        disabled={!collectable}
                         title={
-                          blocked
-                            ? eff === "Expired"
-                              ? "Expired records cannot be collected"
+                          collectable
+                            ? "Record this food as collected"
+                            : eff === "Expired"
+                              ? "Expired beyond the one-hour grace window — handed over to the Manager"
                               : `Status ${eff} does not allow collection`
-                            : "Record this food as collected"
                         }
                         onClick={() => collectFood(f.id)}
                       >
-                        {blocked
-                          ? eff === "Expired"
-                            ? "Expired"
-                            : "Not available"
-                          : "Record collection"}
+                        {collectable
+                          ? "Record collection"
+                          : eff === "Expired"
+                            ? "Handed over"
+                            : "Not available"}
                       </button>
                     </div>
                   </td>

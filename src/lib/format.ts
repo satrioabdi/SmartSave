@@ -66,6 +66,35 @@ export function isExpiringSoon(iso: string, now = new Date()): boolean {
 }
 
 /**
+ * Owner grace window (§10/§11 demo policy): during the first hour after
+ * expiry the food still belongs to the owner's decision — it can be
+ * collected or donated without waiting. After that hour the record is
+ * handed over to the Manager (waste bank) and both actions close.
+ */
+export const EXPIRY_GRACE_MS = 60 * 60000;
+
+/** Expired, but less than one hour ago — the owner may still act. */
+export function expiredWithinGrace(iso: string, now = new Date()): boolean {
+  const ms = now.getTime() - new Date(iso).getTime();
+  return ms > 0 && ms <= EXPIRY_GRACE_MS;
+}
+
+/**
+ * True while the owner may still act on the record: Stored inside its shelf
+ * life, or expired less than one hour ago (the grace window above). Records
+ * expired beyond the hour have been handed over to the Manager.
+ */
+export function ownerActionOpen(
+  status: FoodStatus,
+  expiresAt: string,
+  now = new Date(),
+): boolean {
+  if (status !== "Stored" && status !== "Expired") return false;
+  if (!isExpired(expiresAt, now)) return status === "Stored";
+  return expiredWithinGrace(expiresAt, now);
+}
+
+/**
  * Expiry delta for the Green Community flow: already-expired food is food
  * waste, not-yet-expired food is surplus food. The label states how many days
  * past (waste) or before (surplus) the expiry date the record sits.
@@ -148,7 +177,7 @@ export function donationStatusVariant(s: DonationStatus): BadgeVariant {
 export function requestStatusVariant(s: RequestStatus): BadgeVariant {
   switch (s) {
     case "Approved":
-    case "Completed":
+    case "Distributed":
       return "success";
     case "Rejected":
       return "danger";

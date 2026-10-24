@@ -27,7 +27,12 @@ import {
   compartmentBlockReason,
   compartmentOccupancy,
 } from "../data/compartments";
-import { addDays, effectiveFoodStatus } from "./format";
+import {
+  addDays,
+  effectiveFoodStatus,
+  expiredWithinGrace,
+  ownerActionOpen,
+} from "./format";
 import type {
   Account,
   ActivityLog,
@@ -559,12 +564,16 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         showToast(`Access Denied — ${item.id} is not owned by your account.`);
         return;
       }
-      // Flow diagram 12: only `Stored` transitions to `Collected`.
+      // Flow diagram 12: only `Stored` transitions to `Collected`. The demo
+      // grace policy keeps the record collectible during the first hour after
+      // expiry; after that hour it has been handed over to the Manager.
       const effective = effectiveFoodStatus(item.status, item.expiresAt);
-      if (effective !== "Stored") {
+      const collectible =
+        ownerActionOpen(item.status, item.expiresAt) || effective === "Stored";
+      if (!collectible) {
         showToast(
           effective === "Expired"
-            ? `${item.id} is expired — it cannot be collected.`
+            ? `${item.id} expired more than an hour ago — it has been handed over to the Manager and cannot be collected.`
             : `This action is not available for the current status (${item.status}).`,
         );
         return;
@@ -573,7 +582,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       setFood((prev) =>
         prev.map((f) => (f.id === foodId ? { ...f, status: "Collected" } : f)),
       );
-      showToast(`${item.id} marked as Collected.`);
+      showToast(
+        expiredWithinGrace(item.expiresAt)
+          ? `${item.id} marked as Collected — recorded inside the one-hour grace window after expiry.`
+          : `${item.id} marked as Collected.`,
+      );
     },
     [food, session, recordEvent, showToast],
   );
@@ -688,13 +701,17 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     ({ foodIds, note }) => {
       if (!session) return null;
       // Only the owner may offer their own food, and only while still Stored
-      // (flow diagram 9: Stored → Available for Donation). Expired records
-      // are excluded even when their stored status has not been rewritten.
+      // (flow diagram 9: Stored → Available for Donation). The demo grace
+      // policy also allows records expired less than one hour ago — the
+      // owner may still donate during that hour without waiting. Beyond the
+      // hour the record has been handed over to the Manager and is excluded
+      // even when its stored status has not been rewritten.
       const items = food.filter(
         (f) =>
           foodIds.includes(f.id) &&
           f.ownerUserId === session.userId &&
-          effectiveFoodStatus(f.status, f.expiresAt) === "Stored",
+          (effectiveFoodStatus(f.status, f.expiresAt) === "Stored" ||
+            (f.status === "Stored" && expiredWithinGrace(f.expiresAt))),
       );
       if (items.length === 0) return null;
       const massG = items.reduce((sum, f) => sum + f.massG, 0);
@@ -711,7 +728,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       setDonations((prev) => [donation, ...prev]);
       setFood((prev) =>
         prev.map((f) =>
-          foodIds.includes(f.id)
+          items.some((i) => i.id === f.id)
             ? { ...f, status: "Available for Donation" }
             : f,
         ),
@@ -878,12 +895,15 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   /**
    * Manager records the mass actually handed over. This is the single point
-   * where a donation becomes Completed and its impact event is written.
+   * where a donation becomes Completed, its request becomes Distributed and
+   * the impact event is written. "Distributed" states that the mass was
+   * handed over to the requester (Green Community).
    */
   const distributeDonation: AppActions["distributeDonation"] = useCallback(
     (donationId) => {
       const donation = donations.find((d) => d.id === donationId);
       if (!donation || donation.status !== "Pending" || !session) return;
+      const distributedAt = new Date().toISOString();
       const approved = requests.find(
         (r) => r.donationId === donationId && r.status === "Approved",
       );
@@ -894,7 +914,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
                 ...d,
                 status: "Completed",
                 allocatedTo: approved?.submittedBy ?? d.allocatedTo,
-                completedAt: new Date().toISOString(),
+                completedAt: distributedAt,
               }
             : d,
         ),
@@ -902,7 +922,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       setRequests((prev) =>
         prev.map((r) =>
           r.donationId === donationId && r.status === "Approved"
-            ? { ...r, status: "Completed", decidedAt: new Date().toISOString() }
+            ? { ...r, status: "Distributed", decidedAt: distributedAt }
             : r,
         ),
       );

@@ -42,7 +42,11 @@ export interface VirtualCompartment {
 }
 
 /** Requirement §10 — Green Community request statuses. */
-export type RequestStatus = "Pending" | "Approved" | "Rejected" | "Completed";
+export type RequestStatus =
+  | "Pending"
+  | "Approved"
+  | "Rejected"
+  | "Distributed";
 
 export type Period = "Daily" | "Monthly" | "Yearly";
 

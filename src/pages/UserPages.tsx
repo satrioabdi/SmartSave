@@ -50,11 +50,13 @@ import {
 import {
   downloadCsv,
   effectiveFoodStatus,
+  expiredWithinGrace,
   foodStatusVariant,
   formatDate,
   formatDateTime,
   isExpiringSoon,
   isExpired,
+  ownerActionOpen,
 } from "../lib/format";
 import type { FoodItem, Period } from "../lib/types";
 
@@ -786,8 +788,12 @@ export function FoodDetailPage({ role = "User" }: { role?: "User" | "Manager" })
   const event = events.find((e) => e.foodId === item.id);
   const donation = donations.find((d) => d.foodIds.includes(item.id));
   const expired = effectiveFoodStatus(item.status, item.expiresAt) === "Expired";
-  const canCollect = role === "User" && isOwner && effectiveFoodStatus(item.status, item.expiresAt) === "Stored";
-  const canDonate = role === "User" && isOwner && item.status === "Stored" && !expired;
+  // Grace policy: expired less than one hour ago, the owner may still collect
+  // or donate the food without waiting. Beyond the hour the record has been
+  // handed over to the Manager and both actions are closed.
+  const grace = expired && expiredWithinGrace(item.expiresAt);
+  const canCollect = role === "User" && isOwner && ownerActionOpen(item.status, item.expiresAt);
+  const canDonate = role === "User" && isOwner && item.status === "Stored" && (!expired || grace);
 
   return (
     <AppShell title="Food Detail">
@@ -878,6 +884,9 @@ export function FoodDetailPage({ role = "User" }: { role?: "User" | "Manager" })
                           : foodStatusVariant(item.status)
                     }
                   />
+                  {grace && (
+                    <Badge variant="warning">Grace window — still collectible/donatable</Badge>
+                  )}
                   <Badge variant="info">{item.barcode}</Badge>
                 </div>
                 <SummaryList
@@ -929,6 +938,7 @@ export function FoodDetailPage({ role = "User" }: { role?: "User" | "Manager" })
                   >
                     <IconHand />
                     Record food retrieval (Collected)
+                    {grace && " — grace window"}
                   </button>
                 ) : (
                   <div className="confirmation-panel">
@@ -937,7 +947,7 @@ export function FoodDetailPage({ role = "User" }: { role?: "User" | "Manager" })
                       : !isOwner
                         ? "Collection is not available: this record is not owned by your account."
                         : expired
-                          ? "Collection is not available: this record has expired."
+                          ? "Collection is not available: the record expired more than one hour ago and has been handed over to the Manager."
                           : `Collection is not available: this record is already ${item.status.toLowerCase()}.`}
                   </div>
                 )}
@@ -949,6 +959,7 @@ export function FoodDetailPage({ role = "User" }: { role?: "User" | "Manager" })
                   >
                     <IconGift />
                     Create a donation for this food
+                    {grace && " — grace window"}
                   </button>
                 )}
                 {donation && (
@@ -959,9 +970,9 @@ export function FoodDetailPage({ role = "User" }: { role?: "User" | "Manager" })
                 )}
                 {expired && (
                   <div className="scan-error">
-                    This item is expired. Registration of expired food is
-                    rejected — a new photo check is required before it can be
-                    stored again.
+                    {grace
+                      ? "This item has expired but is inside the one-hour grace window — you may still collect it or donate it above. After the hour the record is handed over to the Manager."
+                      : "This item expired more than one hour ago and has been handed over to the Manager (waste bank). Registration of expired food is rejected — a new photo check is required before it can be stored again."}
                   </div>
                 )}
               </div>

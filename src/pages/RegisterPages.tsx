@@ -9,6 +9,7 @@ import {
   Panel,
   PeriodFilter,
   PolicyBox,
+  QuantityHeader,
   SimulationBanner,
   StatusBadge,
   SummaryList,
@@ -19,12 +20,13 @@ import { IconGift } from "../components/icons";
 import { useStore } from "../lib/store";
 import { formatMass } from "../lib/carbon";
 import {
+  expiredWithinGrace,
   formatDateTime,
   isExpiringSoon,
   isExpired,
   relativeTime,
 } from "../lib/format";
-import type { Period } from "../lib/types";
+import type { FoodItem, Period } from "../lib/types";
 
 /**
  * Register Food is a 5-step deposit wizard (Choose compartment → Register food
@@ -44,8 +46,17 @@ export function ExpiryNotificationsPage() {
   if (!session) return null;
   const mine = food.filter((f) => f.ownerUserId === session.userId);
   const reminders = mine.filter(
-    (f) => f.status === "Stored" && (isExpiringSoon(f.expiresAt) || isExpired(f.expiresAt)),
+    (f) =>
+      f.status === "Stored" &&
+      (isExpiringSoon(f.expiresAt) || isExpired(f.expiresAt)),
   );
+  // Records expired more than one day ago: the data has been handed over to
+  // the Manager (waste bank) — shown read-only so the owner can trace where
+  // the record went.
+  const handedOver = mine.filter(
+    (f) => f.status === "Expired" && !expiredWithinGrace(f.expiresAt, now),
+  );
+  const handedMass = handedOver.reduce((s, f) => s + f.massG, 0);
 
   return (
     <AppShell title="Expiry Notifications">
@@ -93,13 +104,21 @@ export function ExpiryNotificationsPage() {
             </li>
             <li>
               <strong>Expiry passes, no response:</strong> nothing is
-              donated automatically.
+              donated automatically. During the first hour after expiry the
+              User keeps both rights — the food can still be{" "}
+              <em>collected</em> or <em>donated</em> without waiting. Example:{" "}
+              <strong>Cooked rice trays (FD-1044)</strong> expired 30 minutes
+              ago and its card below still offers both actions.
             </li>
             <li>
-              <strong>T+1 hour after expiry:</strong> the Manager records a
-              follow-up per the agreed policy. Example:{" "}
-              <strong>Cooked rice trays (FD-1044)</strong> expired 30 minutes
-              ago — its one-hour Manager follow-up starts once the hour is up.
+              <strong>T+1 hour after expiry:</strong> both actions close and the
+              Manager records the follow-up per the agreed policy.
+            </li>
+            <li>
+              <strong>Expired more than one day:</strong> the record has been
+              handed over to the Manager — its data moves into the waste-bank
+              list and is no longer collectible or donatable. Example:{" "}
+              <strong>Water spinach bundle (FD-1064)</strong>.
             </li>
           </ol>
         </Panel>
@@ -115,6 +134,7 @@ export function ExpiryNotificationsPage() {
           )}
           {reminders.map((f) => {
             const expired = isExpired(f.expiresAt);
+            const grace = expired && expiredWithinGrace(f.expiresAt, now);
             return (
               <div
                 key={f.id}
@@ -130,10 +150,17 @@ export function ExpiryNotificationsPage() {
 
                 {!expired ? (
                   <Countdown ms={new Date(f.expiresAt).getTime() - now.getTime()} />
+                ) : grace ? (
+                  <div className="policy-box">
+                    Expired {relativeTime(f.expiresAt)} — inside the one-hour
+                    grace window. You may still collect this food or donate it
+                    without waiting; both actions close when the hour is up.
+                  </div>
                 ) : (
                   <div className="policy-box">
-                    Expired {relativeTime(f.expiresAt)}. Manager follow-up is
-                    required after one hour without a response.
+                    Expired {relativeTime(f.expiresAt)}. The one-hour grace
+                    window has passed — the record has been handed over to the
+                    Manager and is no longer collectible or donatable.
                   </div>
                 )}
 
@@ -173,6 +200,64 @@ export function ExpiryNotificationsPage() {
             );
           })}
         </div>
+
+        <Panel
+          title="Handed over to the Manager (waste bank)"
+          description="Expired more than one day without a response — the data now sits in the Manager's waste-bank list"
+        >
+          {handedOver.length === 0 ? (
+            <EmptyState
+              title="No records handed over yet"
+              hint="Records expired beyond the one-hour grace window appear here after a day in the Manager's follow-up."
+            />
+          ) : (
+            <div className="stack stack--sm">
+              <TableWrap>
+                <thead>
+                  <tr>
+                    <th scope="col">Record</th>
+                    <th scope="col">Owner</th>
+                    <th scope="col">Expired</th>
+                    <th scope="col">Handed over</th>
+                    <QuantityHeader />
+                    <th scope="col">Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {handedOver.map((f: FoodItem) => (
+                    <tr key={f.id}>
+                      <td>
+                        <button
+                          type="button"
+                          className="cell-strong"
+                          style={{ background: "none", border: "none", padding: 0, cursor: "pointer", textAlign: "left" }}
+                          onClick={() => navigate({ name: "food-detail", id: f.id })}
+                        >
+                          {f.name}
+                        </button>
+                        <span className="cell-sub">{f.id} · {f.category}</span>
+                      </td>
+                      <td className="num-col">{f.ownerLabel}</td>
+                      <td className="num-col">{formatDateTime(f.expiresAt)}</td>
+                      <td className="num-col">{relativeTime(f.expiresAt)}</td>
+                      <td className="num-col">{formatMass(f.massG)}</td>
+                      <td>
+                        <StatusBadge label="Handed over to the Manager" variant="danger" />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </TableWrap>
+              <p className="small">
+                {handedOver.length} record(s) · {formatMass(handedMass)} handed
+                over to the Manager and stored at the waste bank. Delivery
+                details follow via email — these records are no longer
+                collectible or donatable, and no impact event is counted for
+                them.
+              </p>
+            </div>
+          )}
+        </Panel>
 
         <Panel title="Notification history" description="Delivery status for every website notification">
           <TableWrap>

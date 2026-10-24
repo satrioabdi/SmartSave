@@ -98,7 +98,7 @@ function PickupDetail({
       </span>
     );
   }
-  if (request && (request.status === "Approved" || request.status === "Completed")) {
+  if (request && (request.status === "Approved" || request.status === "Distributed")) {
     return <span className="tiny">Collect with the Manager at handover.</span>;
   }
   return (
@@ -136,8 +136,8 @@ export function GcDashboardPage() {
 
   const open = donations.filter((d) => d.status === "Pending");
   const mine = requests.filter((r) => r.submittedBy === session.name);
-  const approved = mine.filter((r) => r.status === "Approved" || r.status === "Completed");
-  const completed = mine.filter((r) => r.status === "Completed");
+  const approved = mine.filter((r) => r.status === "Approved" || r.status === "Distributed");
+  const completed = mine.filter((r) => r.status === "Distributed");
   const receivedMass = completed.reduce((s, r) => s + r.massG, 0);
 
   const myFoodIds = new Set(
@@ -770,7 +770,7 @@ export function GcRequestsPage() {
       <div className="stack">
         <Toolbar>
           <select value={status} onChange={(e) => setStatus(e.target.value)} aria-label="Status filter">
-            {["All", "Pending", "Approved", "Rejected", "Completed"].map((s) => (
+            {["All", "Pending", "Approved", "Rejected", "Distributed"].map((s) => (
               <option key={s}>{s}</option>
             ))}
           </select>
@@ -1075,7 +1075,7 @@ export function GcHistoryPage() {
 
   if (!session) return null;
   const completedIds = requests
-    .filter((r) => r.submittedBy === session.name && r.status === "Completed")
+    .filter((r) => r.submittedBy === session.name && r.status === "Distributed")
     .map((r) => r.donationId);
   const received = donations.filter((d) => completedIds.includes(d.id));
   const foodIds = received.flatMap((d) => d.foodIds);
@@ -1101,7 +1101,7 @@ export function GcHistoryPage() {
               <div className="metric-label">Distributions received</div>
               <div className="metric-value">{received.length}</div>
             </div>
-            <div className="metric-foot">Completed donations allocated to you</div>
+            <div className="metric-foot">Distributed donations allocated to you</div>
           </div>
           <div className="metric-card">
             <div className="metric-icon metric-icon--blue"><IconGift /></div>
@@ -1139,7 +1139,7 @@ export function GcHistoryPage() {
               <thead>
                 <tr>
                   <th scope="col">Donation</th>
-                  <th scope="col">Completed</th>
+                  <th scope="col">Distributed</th>
                   <QuantityHeader />
                   <th scope="col">Estimated CO₂e</th>
                 </tr>

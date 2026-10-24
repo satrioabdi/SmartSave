@@ -47,6 +47,7 @@ import {
   downloadCsv,
   donationStatusVariant,
   effectiveFoodStatus,
+  expiredWithinGrace,
   foodStatusVariant,
   formatDate,
   formatDateTime,
@@ -139,7 +140,8 @@ export function ManagerDashboardPage() {
               <div className="metric-value">{pendingRequests.length}</div>
             </div>
             <div className="metric-foot">
-              {requests.filter((r) => r.status === "Approved").length} approved, awaiting handover
+              {requests.filter((r) => r.status === "Approved").length} approved, awaiting handover ·{" "}
+              {requests.filter((r) => r.status === "Distributed").length} distributed
             </div>
           </div>
           <div className="metric-card">
@@ -1070,9 +1072,11 @@ export function ManagerDonationsPage() {
         </TableWrap>
 
         <Notice title="Handover is the single counting point">
-          A donation moves Pending → Completed when a Manager records the handover.
-          At that moment one Distributed impact event is written per food record,
-          keyed by mass/lot, so the same mass is never counted twice.
+          A donation moves Pending → Completed when a Manager records the
+          handover. Its request becomes <strong>Distributed</strong> — the mass
+          was handed over to the requester. At that moment one Distributed
+          impact event is written per food record, keyed by mass/lot, so the
+          same mass is never counted twice.
         </Notice>
       </div>
     </AppShell>
@@ -1107,7 +1111,7 @@ export function ManagerRequestsPage() {
       <div className="stack">
         <Toolbar>
           <select value={status} onChange={(e) => setStatus(e.target.value)} aria-label="Status filter">
-            {["All", "Pending", "Approved", "Rejected", "Completed"].map((s) => (
+            {["All", "Pending", "Approved", "Rejected", "Distributed"].map((s) => (
               <option key={s}>{s}</option>
             ))}
           </select>
@@ -1159,7 +1163,11 @@ export function ManagerRequestsPage() {
                   </td>
                   <td className="num-col">{formatMass(r.massG)}</td>
                   <td className="num-col">
-                    <Badge variant="neutral">Counted only after handover</Badge>
+                    {r.status === "Distributed" ? (
+                      <Badge variant="success">Distributed to the requester</Badge>
+                    ) : (
+                      <Badge variant="neutral">Counted only after handover</Badge>
+                    )}
                   </td>
                   <td>
                     <div className="table-actions">
@@ -1319,40 +1327,60 @@ export function ManagerExpiryMonitorPage() {
         )}
 
         {tab === "expired" && (
-          <Panel title="Expired records" description="Follow up with the owner or close the record">
+          <Panel
+            title="Expired records"
+            description="Grace window first, then the waste bank — follow up with the owner or record the handover"
+          >
             {expired.length === 0 ? (
               <EmptyState title="No expired records" />
             ) : (
-              <TableWrap>
-                <thead>
-                  <tr>
-                    <th scope="col">Record</th>
-                    <th scope="col">Owner</th>
-                    <th scope="col">Expired at</th>
-                    <QuantityHeader />
-                    <th scope="col">Follow-up</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {expired.map((f) => (
-                    <tr key={f.id}>
-                      <td>
-                        <span className="cell-strong">{f.name}</span>
-                        <span className="cell-sub">{f.id} · {f.category}</span>
-                      </td>
-                      <td className="num-col">{f.ownerLabel}</td>
-                      <td className="num-col">{formatDateTime(f.expiresAt)}</td>
-                      <td className="num-col">{formatMass(f.massG)}</td>
-                      <td>
-                        <Badge variant="neutral">No qualifying event yet</Badge>
-                      </td>
-                      <td className="tiny">
-                        Expired with no qualifying event — no impact counted.
-                      </td>
+              <div className="stack stack--sm">
+                <TableWrap>
+                  <thead>
+                    <tr>
+                      <th scope="col">Record</th>
+                      <th scope="col">Owner</th>
+                      <th scope="col">Expired at</th>
+                      <QuantityHeader />
+                      <th scope="col">Follow-up</th>
                     </tr>
-                  ))}
-                </tbody>
-              </TableWrap>
+                  </thead>
+                  <tbody>
+                    {expired.map((f) => {
+                      const grace = expiredWithinGrace(f.expiresAt);
+                      return (
+                        <tr key={f.id}>
+                          <td>
+                            <span className="cell-strong">{f.name}</span>
+                            <span className="cell-sub">{f.id} · {f.category}</span>
+                          </td>
+                          <td className="num-col">{f.ownerLabel}</td>
+                          <td className="num-col">{formatDateTime(f.expiresAt)}</td>
+                          <td className="num-col">{formatMass(f.massG)}</td>
+                          <td>
+                            {grace ? (
+                              <Badge variant="warning">Owner grace window (1 h)</Badge>
+                            ) : (
+                              <Badge variant="danger">Waste bank — handed over</Badge>
+                            )}
+                          </td>
+                          <td className="tiny">
+                            {grace
+                              ? "Expired within the last hour — the owner may still collect or donate it."
+                              : "Expired beyond the grace window — the record sits in the waste-bank list; no impact counted."}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </TableWrap>
+                <p className="small">
+                  During the first hour after expiry the owner keeps the right to
+                  collect or donate the record. Beyond that hour — and certainly
+                  beyond one day — the data moves into the waste-bank list above
+                  and is managed by the Manager.
+                </p>
+              </div>
             )}
           </Panel>
         )}
