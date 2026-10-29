@@ -26,6 +26,7 @@ import {
 } from "../lib/carbon";
 import {
   donationStatusVariant,
+  demoNow,
   effectiveFoodStatus,
   expiredWithinGrace,
   foodStatusVariant,
@@ -38,7 +39,7 @@ import {
 /* --------------------------- Food Donation ---------------------------- */
 
 export function FoodDonationPage() {
-  const { session, food, createDonation, cancelDonation, navigate, setToast } =
+  const { session, food, createDonation, cancelDonation, navigate, setToast, timezone } =
     useStore();
   const [selected, setSelected] = useState<string[]>([]);
   const [note, setNote] = useState("");
@@ -155,7 +156,7 @@ export function FoodDonationPage() {
                         )}
                       </strong>
                       <span className="tiny">
-                        {f.id} · {formatMass(f.massG)} · expires {formatDateTime(f.expiresAt)}
+                        {f.id} · {formatMass(f.massG)} · expires {formatDateTime(f.expiresAt, timezone)}
                         {grace
                           ? " · still donatable inside the one-hour grace window"
                           : ""}
@@ -225,7 +226,7 @@ export function FoodDonationPage() {
 /* -------------------------- Donation History -------------------------- */
 
 export function DonationHistoryPage() {
-  const { session, donations, food, cancelDonation, navigate } = useStore();
+  const { session, donations, food, cancelDonation, navigate, timezone } = useStore();
   const [status, setStatus] = useState("All");
 
   if (!session) return null;
@@ -317,7 +318,7 @@ export function DonationHistoryPage() {
                 <td>
                   <StatusBadge label={d.status} variant={donationStatusVariant(d.status)} />
                 </td>
-                <td className="num-col">{formatDate(d.createdAt)}</td>
+                <td className="num-col">{formatDate(d.createdAt, timezone)}</td>
                 <td className="num-col">{formatMass(d.massG)}</td>
                 <td className="num-col">
                   {d.status === "Completed" ? (
@@ -382,7 +383,7 @@ export function DonationHistoryPage() {
 /* --------------------- Food Retrieval / Collection -------------------- */
 
 export function RetrievalPage() {
-  const { session, food, collectFood, events, navigate } = useStore();
+  const { session, food, collectFood, events, navigate, timezone } = useStore();
   const [filter, setFilter] = useState<"All" | "Collectable" | "Recorded">("Collectable");
 
   if (!session) return null;
@@ -472,11 +473,11 @@ export function RetrievalPage() {
                     {grace && (
                       <span className="cell-sub">
                         Grace window — still collectable for another{" "}
-                        {Math.max(1, Math.round((new Date(f.expiresAt).getTime() + 3600000 - Date.now()) / 60000))} min
+                        {Math.max(1, Math.round((new Date(f.expiresAt).getTime() + 3600000 - demoNow().getTime()) / 60000))} min
                       </span>
                     )}
                   </td>
-                  <td className="num-col">{formatDateTime(f.expiresAt)}</td>
+                  <td className="num-col">{formatDateTime(f.expiresAt, timezone)}</td>
                   <td className="num-col">{formatMass(f.massG)}</td>
                   <td className="num-col">
                     {ev ? (
@@ -540,7 +541,7 @@ export function RetrievalPage() {
                       <span className="cell-strong">{e.label}</span>
                       <span className="cell-sub">{e.foodId}</span>
                     </td>
-                    <td className="num-col">{formatDateTime(e.occurredAt)}</td>
+                    <td className="num-col">{formatDateTime(e.occurredAt, timezone)}</td>
                     <td className="num-col">{formatMass(e.massG)}</td>
                     <td className="num-col">
                       <CarbonValue

@@ -73,7 +73,7 @@ export function openDetail(navigate: (r: Route) => void, id: string) {
 /* --------------------------- User dashboard --------------------------- */
 
 export function UserDashboardPage() {
-  const { session, food, donations, events, navigate } = useStore();
+  const { session, food, donations, events, navigate, timezone } = useStore();
   const [period, setPeriod] = useState<Period>("Monthly");
 
   if (!session) return null;
@@ -190,7 +190,7 @@ export function UserDashboardPage() {
                       {f.name}
                     </button>
                     <div className="activity-time">
-                      {formatMass(f.massG)} · {f.status} · stored {formatDate(f.storedAt)}
+                      {formatMass(f.massG)} · {f.status} · stored {formatDate(f.storedAt, timezone)}
                     </div>
                   </div>
                 </div>
@@ -249,7 +249,7 @@ export function UserDashboardPage() {
                   <td>
                     <StatusBadge label={f.status} variant={foodStatusVariant(f.status)} />
                   </td>
-                  <td className="num-col">{formatDate(f.expiresAt)}</td>
+                  <td className="num-col">{formatDate(f.expiresAt, timezone)}</td>
                   <td className="num-col">{formatMass(f.massG)}</td>
                   <td className="num-col">
                     <ItemCarbonCell item={f} events={myPeriodEvents} />
@@ -326,7 +326,7 @@ export function InventoryPage({
   /** Manager entry from User and Role Management — pre-filtered to one person. */
   initialOwner?: string;
 }) {
-  const { session, food, events, navigate, reviewMass, cancelMassReview, setToast } =
+  const { session, food, events, navigate, reviewMass, cancelMassReview, setToast, timezone } =
     useStore();
   const [q, setQ] = useState("");
   const [status, setStatus] = useState("All");
@@ -395,8 +395,8 @@ export function InventoryPage({
           // Same label as the on-screen table (§8: CSV mirrors the screen).
           effectiveFoodStatus(f.status, f.expiresAt),
           f.compartmentLabel ?? "—",
-          formatDateTime(f.storedAt),
-          formatDateTime(f.expiresAt),
+          formatDateTime(f.storedAt, timezone),
+          formatDateTime(f.expiresAt, timezone),
         ];
       }),
     ]);
@@ -557,9 +557,9 @@ export function InventoryPage({
                     <span className="cell-sub">Virtual locker</span>
                   )}
                 </td>
-                <td className="num-col">{formatDateTime(f.storedAt)}</td>
+                <td className="num-col">{formatDateTime(f.storedAt, timezone)}</td>
                 <td className="num-col">
-                  {formatDateTime(f.expiresAt)}
+                  {formatDateTime(f.expiresAt, timezone)}
                   <span className="cell-sub">auto — not editable</span>
                 </td>
                 <td className="num-col">
@@ -730,7 +730,7 @@ export function InventoryPage({
 /* ---------------------------- Food detail ----------------------------- */
 
 export function FoodDetailPage({ role = "User" }: { role?: "User" | "Manager" }) {
-  const { session, food, donations, events, navigate, collectFood } = useStore();
+  const { session, food, donations, events, navigate, collectFood, timezone } = useStore();
   const route = useStore().route;
   const id = route.name === "food-detail" ? route.id : "";
   const item = food.find((f) => f.id === id);
@@ -842,7 +842,7 @@ export function FoodDetailPage({ role = "User" }: { role?: "User" | "Manager" })
             <div>
               <div className="metric-label">Expiration Date &amp; Time</div>
               <div className="metric-value" style={{ fontSize: 20 }}>
-                {formatDateTime(item.expiresAt)}
+                {formatDateTime(item.expiresAt, timezone)}
               </div>
             </div>
             <div className="metric-foot">
@@ -897,7 +897,7 @@ export function FoodDetailPage({ role = "User" }: { role?: "User" | "Manager" })
                       label: "Compartment",
                       value: item.compartmentLabel ?? "—",
                     },
-                    { label: "Created / Stored At", value: formatDateTime(item.storedAt) },
+                    { label: "Created / Stored At", value: formatDateTime(item.storedAt, timezone) },
                     { label: "Shelf-life rule applied", value: item.ruleSnapshot.ruleLabel },
                     {
                       label: "Photo",
@@ -1010,7 +1010,7 @@ export function FoodDetailPage({ role = "User" }: { role?: "User" | "Manager" })
                     { label: "Estimated CO₂e", value: <CarbonValue value={value} /> },
                     {
                       label: "Period / date",
-                      value: event ? formatDate(event.occurredAt) : formatDate(item.storedAt),
+                      value: event ? formatDate(event.occurredAt, timezone) : formatDate(item.storedAt, timezone),
                     },
                     {
                       label: "Data status",
@@ -1044,7 +1044,7 @@ export function FoodDetailPage({ role = "User" }: { role?: "User" | "Manager" })
                 Photo freshness checks are simulated. Real AI freshness detection
                 is not part of the initial scope.
               </SimulationBanner>
-              <DetailLabelCard item={item} />
+              <DetailLabelCard item={item} zone={timezone} />
             </div>
           </div>
         </div>
@@ -1098,7 +1098,7 @@ function MassVerificationLine({ item }: { item: FoodItem }) {
 /* ---------------------------- Print label ----------------------------- */
 
 export function PrintLabelPage() {
-  const { session, food, navigate, route } = useStore();
+  const { session, food, navigate, route, timezone } = useStore();
   const id = route.name === "print-label" ? route.id : "";
   const [selected, setSelected] = useState(id);
 
@@ -1166,7 +1166,7 @@ export function PrintLabelPage() {
 
           <div className="stack stack--sm">
             {item ? (
-              <DetailLabelCard item={item} />
+              <DetailLabelCard item={item} zone={timezone} />
             ) : (
               <EmptyState title="No record selected" />
             )}

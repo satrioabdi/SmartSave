@@ -51,6 +51,7 @@ import {
   foodStatusVariant,
   formatDate,
   formatDateTime,
+  demoNow,
   relativeTime,
   requestStatusVariant,
   roleVariant,
@@ -68,12 +69,12 @@ import type { Route } from "../lib/store";
 /* ---------------------------- Dashboard ------------------------------ */
 
 export function ManagerDashboardPage() {
-  const { food, donations, requests, events, notifications, logs, navigate } =
+  const { food, donations, requests, events, notifications, logs, navigate, timezone } =
     useStore();
   const [period, setPeriod] = useState<Period>("Monthly");
 
   const expiring = food.filter((f) => {
-    const h = (new Date(f.expiresAt).getTime() - Date.now()) / 3600000;
+    const h = (new Date(f.expiresAt).getTime() - demoNow().getTime()) / 3600000;
     return h > 0 && h <= 24 && effectiveFoodStatus(f.status, f.expiresAt) === "Stored";
   });
   const expired = food.filter(
@@ -278,7 +279,7 @@ export function ManagerDashboardPage() {
 /* ------------------------ User and Role Management -------------------- */
 
 export function ManagerUsersPage() {
-  const { accounts, food, requests, donations, events, session, navigate } =
+  const { accounts, food, requests, donations, events, session, navigate, timezone } =
     useStore();
   const [q, setQ] = useState("");
   const [role, setRole] = useState("All");
@@ -368,7 +369,7 @@ export function ManagerUsersPage() {
                     <StatusBadge label={a.role} variant={roleVariant(a.role)} />
                   </td>
                   <td className="num-col">{a.organization ?? "—"}</td>
-                  <td className="num-col">{formatDate(a.createdAt)}</td>
+                  <td className="num-col">{formatDate(a.createdAt, timezone)}</td>
                   <td className="num-col">
                     {a.role === "User" && `${owned} food · ${dons} donations`}
                     {a.role === "Green Community" && `${reqs} requests`}
@@ -940,7 +941,7 @@ export function ManagerBarcodesPage() {
 /* --------------------------- Donation Management --------------------- */
 
 export function ManagerDonationsPage() {
-  const { donations, food, requests, distributeDonation, navigate } = useStore();
+  const { donations, food, requests, distributeDonation, navigate, timezone } = useStore();
   const [status, setStatus] = useState("All");
 
   const rows = donations.filter((d) => status === "All" || d.status === status);
@@ -1011,7 +1012,7 @@ export function ManagerDonationsPage() {
                     <StatusBadge label={d.status} variant={donationStatusVariant(d.status)} />
                   </td>
                   <td className="num-col">{d.createdBy}</td>
-                  <td className="num-col">{formatDate(d.createdAt)}</td>
+                  <td className="num-col">{formatDate(d.createdAt, timezone)}</td>
                   <td className="num-col">{formatMass(d.massG)}</td>
                   <td className="num-col">
                     {d.status === "Completed" ? (
@@ -1086,7 +1087,7 @@ export function ManagerDonationsPage() {
 /* -------------------- Green Community Requests ------------------------ */
 
 export function ManagerRequestsPage() {
-  const { requests, donations, decideRequest, navigate } = useStore();
+  const { requests, donations, decideRequest, navigate, timezone } = useStore();
   const [status, setStatus] = useState("All");
   const [rejectId, setRejectId] = useState<string | null>(null);
   const [reason, setReason] = useState("");
@@ -1156,7 +1157,7 @@ export function ManagerRequestsPage() {
                     <StatusBadge label={r.status} variant={requestStatusVariant(r.status)} />
                   </td>
                   <td className="num-col">{r.submittedBy}</td>
-                  <td className="num-col">{formatDateTime(r.submittedAt)}</td>
+                  <td className="num-col">{formatDateTime(r.submittedAt, timezone)}</td>
                   <td className="tiny">
                     {r.contactAddress ?? "—"}
                     <span className="cell-sub">{r.contactEmail ?? "—"}</span>
@@ -1244,11 +1245,11 @@ export function ManagerRequestsPage() {
 /* --------------- Expiry / Website Notification Monitoring -------------- */
 
 export function ManagerExpiryMonitorPage() {
-  const { food, notifications, markNotificationsRead } = useStore();
+  const { food, notifications, markNotificationsRead, timezone } = useStore();
   const [tab, setTab] = useState<"expiring" | "expired" | "notifications">("expiring");
 
   const expiring = food.filter((f) => {
-    const h = (new Date(f.expiresAt).getTime() - Date.now()) / 3600000;
+    const h = (new Date(f.expiresAt).getTime() - demoNow().getTime()) / 3600000;
     return h > 0 && h <= 2 && f.status !== "Collected" && f.status !== "Donated";
   });
   const expired = food.filter(
@@ -1308,7 +1309,7 @@ export function ManagerExpiryMonitorPage() {
                         <span className="cell-sub">{f.id} · {f.category}</span>
                       </td>
                       <td className="num-col">{f.ownerLabel}</td>
-                      <td className="num-col">{formatDateTime(f.expiresAt)}</td>
+                      <td className="num-col">{formatDateTime(f.expiresAt, timezone)}</td>
                       <td className="num-col">
                         <Badge variant="warning">
                           {relativeTime(f.expiresAt)}
@@ -1355,7 +1356,7 @@ export function ManagerExpiryMonitorPage() {
                             <span className="cell-sub">{f.id} · {f.category}</span>
                           </td>
                           <td className="num-col">{f.ownerLabel}</td>
-                          <td className="num-col">{formatDateTime(f.expiresAt)}</td>
+                          <td className="num-col">{formatDateTime(f.expiresAt, timezone)}</td>
                           <td className="num-col">{formatMass(f.massG)}</td>
                           <td>
                             {grace ? (
@@ -1437,7 +1438,7 @@ export function ManagerExpiryMonitorPage() {
                             : "System"}
                       </Badge>
                     </td>
-                    <td className="num-col">{formatDateTime(n.createdAt)}</td>
+                    <td className="num-col">{formatDateTime(n.createdAt, timezone)}</td>
                     <td>
                       <Badge
                         variant={
@@ -1465,7 +1466,7 @@ export function ManagerExpiryMonitorPage() {
 /* ------------------------------ Activity Logs ------------------------- */
 
 export function ActivityLogsPage() {
-  const { logs } = useStore();
+  const { logs, timezone } = useStore();
   const [q, setQ] = useState("");
   const [actor, setActor] = useState("All");
 
@@ -1541,7 +1542,7 @@ export function ActivityLogsPage() {
             {rows.map((l) => (
               <tr key={l.id}>
                 <td className="num-col">
-                  {formatDateTime(l.at)}
+                  {formatDateTime(l.at, timezone)}
                   <span className="cell-sub">{relativeTime(l.at)}</span>
                 </td>
                 <td className="num-col">{l.actor}</td>

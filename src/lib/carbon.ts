@@ -4,6 +4,7 @@
  * Only qualified events (§18) produce an impact; registration alone does not.
  */
 import { resolveFactor, type FactorResolution } from "../data/catalog";
+import { demoNow } from "./format";
 import type { CarbonValue, FactorState, Period } from "./types";
 
 export const FORMULA_TEXT = "(Food Mass (g) ÷ 1000) × Emission Factor";
@@ -107,7 +108,7 @@ export function resolveForItem(
  * Period filtering (§8) — cards, tables, charts and CSV share it.
  * ------------------------------------------------------------------ */
 
-export function periodStart(period: Period, now = new Date()): Date {
+export function periodStart(period: Period, now = demoNow()): Date {
   const d = new Date(now);
   if (period === "Daily") {
     d.setHours(0, 0, 0, 0);
@@ -121,11 +122,11 @@ export function periodStart(period: Period, now = new Date()): Date {
   return new Date(d.getFullYear(), 0, 1);
 }
 
-export function inPeriod(iso: string, period: Period, now = new Date()): boolean {
+export function inPeriod(iso: string, period: Period, now = demoNow()): boolean {
   return new Date(iso).getTime() >= periodStart(period, now).getTime();
 }
 
-export function periodLabel(period: Period, now = new Date()): string {
+export function periodLabel(period: Period, now = demoNow()): string {
   const opts: Intl.DateTimeFormatOptions =
     period === "Daily"
       ? { month: "short", day: "numeric", year: "numeric" }
@@ -140,7 +141,7 @@ export function periodLabel(period: Period, now = new Date()): string {
  * Bucket labels for the mini chart — 7 buckets ending now.
  * Daily → last 7 days; Monthly → last 7 months; Yearly → last 7 years.
  */
-export function chartBuckets(period: Period, now = new Date()): {
+export function chartBuckets(period: Period, now = demoNow()): {
   label: string;
   start: Date;
   end: Date;

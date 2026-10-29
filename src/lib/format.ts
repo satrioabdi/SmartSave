@@ -7,16 +7,141 @@ import type {
   Role,
 } from "./types";
 
-export function formatDate(iso: string): string {
+/**
+ * Demo timezone setting (§14: website simulation). All date/time rendering and
+ * every "now" comparison flow through the selected zone so the demo can be
+ * viewed as if accessed from another country — KST (Asia/Seoul) by default,
+ * per the reviewer's request. Times are stored as real UTC instants; only the
+ * presentation and day boundaries follow the selected zone.
+ */
+export interface TimezoneOption {
+  /** IANA zone name. */
+  zone: string;
+  /** Short label, e.g. "KST (Seoul)". */
+  label: string;
+  /** Country shown in the picker. */
+  country: string;
+}
+
+export const TIMEZONE_OPTIONS: TimezoneOption[] = [
+  { zone: "Asia/Seoul", label: "KST — Korea Selatan", country: "South Korea" },
+  { zone: "Asia/Jakarta", label: "WIB — Indonesia", country: "Indonesia" },
+  { zone: "Asia/Singapore", label: "SGT — Singapura", country: "Singapore" },
+  { zone: "Asia/Tokyo", label: "JST — Jepang", country: "Japan" },
+  { zone: "Asia/Kuala_Lumpur", label: "MYT — Malaysia", country: "Malaysia" },
+  { zone: "Australia/Sydney", label: "AEST — Australia", country: "Australia" },
+  { zone: "Europe/London", label: "GMT — Inggris", country: "United Kingdom" },
+  { zone: "America/New_York", label: "EST — Amerika Serikat", country: "United States" },
+];
+
+export const DEFAULT_TIMEZONE = TIMEZONE_OPTIONS[0].zone;
+
+/**
+ * Current time as seen from `zone`, as a plain Date whose local getters
+ * (getHours, getDateString, …) read the wall clock of that zone. Passing this
+ * Date to toLocaleString with timeZone undefined would show the viewer's own
+ * zone — so every display helper below formats with the zone explicitly.
+ */
+export function nowInZone(zone: string): Date {
+  const now = new Date();
+  try {
+    const wall = now.toLocaleString("en-US", { timeZone: zone });
+    return new Date(wall);
+  } catch {
+    return now;
+  }
+}
+
+/**
+ * Wall-clock parts of an instant as seen from `zone`. Used for day/hour
+ * boundaries ("expires 08 AM KST on Nov 8") without manual offsets.
+ */
+export function partsInZone(
+  iso: string,
+  zone: string,
+): { y: number; m: number; d: number; h: number; min: number } {
+  const dtf = new Intl.DateTimeFormat("en-CA", {
+    timeZone: zone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
+  const parts: Record<string, string> = {};
+  for (const p of dtf.formatToParts(new Date(iso))) parts[p.type] = p.value;
+  const h = parts.hour === "24" ? 0 : Number(parts.hour);
+  return {
+    y: Number(parts.year),
+    m: Number(parts.month),
+    d: Number(parts.day),
+    h: h % 24,
+    min: Number(parts.minute),
+  };
+}
+
+/* ------------------------- demo simulation clock ------------------------ */
+
+/**
+ * Demo date the seed data is anchored to: the reviewer asked for an expiry
+ * simulation "on Nov 7" — food already expired, about to expire, and far
+ * future — so the dataset can be explored from that vantage point. Null means
+ * "use the real clock" (the default; every offset stays relative to load time).
+ * Set to an ISO datetime to freeze the clock there (session-only, demo banner
+ * marks it as simulation).
+ */
+export let demoClockIso: string | null = null;
+
+export function setDemoClock(iso: string | null): void {
+  demoClockIso = iso;
+}
+
+export function demoNow(): Date {
+  return demoClockIso ? new Date(demoClockIso) : new Date();
+}
+
+/**
+ * ISO instant whose wall-clock time in `zone` equals the asked date/hour
+ * (e.g. 2026-11-08 08:00 in Asia/Seoul). Iterates in 15-min steps to resolve
+ * the offset for that date — DST-safe for every zone in the picker.
+ */
+export function wallTimeToIso(
+  y: number,
+  monthIndex: number,
+  d: number,
+  h: number,
+  min = 0,
+  zone: string = DEFAULT_TIMEZONE,
+): string {
+  // Start from UTC midnight of that date minus half a day and search forward
+  // in 15-min steps until the wall clock matches.
+  const guess = Date.UTC(y, monthIndex, d, 0, 0) - 14 * 3600000;
+  const targetMin = h * 60 + min;
+  for (let i = 0; i < 4 * 24 * 4 + 8; i++) {
+    const t = new Date(guess + i * 15 * 60000).toISOString();
+    const p = partsInZone(t, zone);
+    const curMin = p.h * 60 + p.min;
+    if (p.y === y && p.m === monthIndex + 1 && p.d === d && curMin === targetMin) {
+      return t;
+    }
+  }
+  // Fallback: 7h offset (KST) — only reachable with an unsupported zone name.
+  return new Date(Date.UTC(y, monthIndex, d, h - 7, min)).toISOString();
+}
+
+export function formatDate(iso: string, zone = DEFAULT_TIMEZONE): string {
   return new Date(iso).toLocaleDateString("en-GB", {
+    timeZone: zone,
     day: "numeric",
     month: "short",
     year: "numeric",
   });
 }
 
-export function formatDateTime(iso: string): string {
+export function formatDateTime(iso: string, zone = DEFAULT_TIMEZONE): string {
   return new Date(iso).toLocaleString("en-GB", {
+    timeZone: zone,
     day: "numeric",
     month: "short",
     year: "numeric",
@@ -25,14 +150,15 @@ export function formatDateTime(iso: string): string {
   });
 }
 
-export function formatTime(iso: string): string {
+export function formatTime(iso: string, zone = DEFAULT_TIMEZONE): string {
   return new Date(iso).toLocaleTimeString("en-GB", {
+    timeZone: zone,
     hour: "2-digit",
     minute: "2-digit",
   });
 }
 
-export function relativeTime(iso: string, now = new Date()): string {
+export function relativeTime(iso: string, now = demoNow()): string {
   const diff = new Date(iso).getTime() - now.getTime();
   const abs = Math.abs(diff);
   const mins = Math.round(abs / 60000);
@@ -51,16 +177,16 @@ export function addDays(iso: string, days: number): string {
   return d.toISOString();
 }
 
-export function hoursUntil(iso: string, now = new Date()): number {
+export function hoursUntil(iso: string, now = demoNow()): number {
   return (new Date(iso).getTime() - now.getTime()) / 3600000;
 }
 
-export function isExpired(iso: string, now = new Date()): boolean {
+export function isExpired(iso: string, now = demoNow()): boolean {
   return new Date(iso).getTime() <= now.getTime();
 }
 
 /** Requirement §10/§11 — reminder window: two hours before expiry. */
-export function isExpiringSoon(iso: string, now = new Date()): boolean {
+export function isExpiringSoon(iso: string, now = demoNow()): boolean {
   const h = hoursUntil(iso, now);
   return h > 0 && h <= 2;
 }
@@ -74,7 +200,7 @@ export function isExpiringSoon(iso: string, now = new Date()): boolean {
 export const EXPIRY_GRACE_MS = 60 * 60000;
 
 /** Expired, but less than one hour ago — the owner may still act. */
-export function expiredWithinGrace(iso: string, now = new Date()): boolean {
+export function expiredWithinGrace(iso: string, now = demoNow()): boolean {
   const ms = now.getTime() - new Date(iso).getTime();
   return ms > 0 && ms <= EXPIRY_GRACE_MS;
 }
@@ -87,7 +213,7 @@ export function expiredWithinGrace(iso: string, now = new Date()): boolean {
 export function ownerActionOpen(
   status: FoodStatus,
   expiresAt: string,
-  now = new Date(),
+  now = demoNow(),
 ): boolean {
   if (status !== "Stored" && status !== "Expired") return false;
   if (!isExpired(expiresAt, now)) return status === "Stored";
@@ -101,7 +227,7 @@ export function ownerActionOpen(
  */
 export function expiryDeltaLabel(
   expiresAt: string,
-  now = new Date(),
+  now = demoNow(),
 ): { expired: boolean; label: string } {
   const diff = new Date(expiresAt).getTime() - now.getTime();
   if (diff <= 0) {
@@ -127,7 +253,7 @@ export function expiryDeltaLabel(
 export function effectiveFoodStatus(
   status: FoodStatus,
   expiresAt: string,
-  now = new Date(),
+  now = demoNow(),
 ): FoodStatus {
   if (status === "Stored" && isExpired(expiresAt, now)) return "Expired";
   return status;

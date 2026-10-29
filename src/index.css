@@ -649,6 +649,27 @@ textarea {
   background: var(--canvas);
 }
 
+/* Demo country/timezone trigger in the topbar. */
+.tz-trigger {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--white);
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--navy);
+}
+.tz-trigger:hover {
+  background: var(--canvas);
+}
+.tz-trigger .tz-country {
+  color: var(--ink-soft);
+  font-size: 11px;
+}
+
 .avatar {
   width: 30px;
   height: 30px;
@@ -2158,7 +2179,8 @@ textarea {
     display: grid;
   }
   .crumb span:not(:last-child),
-  .profile-trigger .profile-name {
+  .profile-trigger .profile-name,
+  .tz-trigger .tz-country {
     display: none;
   }
   .topbar {

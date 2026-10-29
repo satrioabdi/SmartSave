@@ -129,7 +129,7 @@ function donationExpiry(items: FoodItem[]): {
 /* ----------------------------- Dashboard ----------------------------- */
 
 export function GcDashboardPage() {
-  const { session, donations, requests, food, events, navigate } = useStore();
+  const { session, donations, requests, food, events, navigate, timezone } = useStore();
   const [period, setPeriod] = useState<Period>("Monthly");
 
   if (!session) return null;
@@ -311,7 +311,7 @@ export function GcDashboardPage() {
                         <span className="cell-sub">{d.id} · {d.foodIds.join(", ")}</span>
                       </td>
                       <td className="num-col">{d.createdBy}</td>
-                      <td className="num-col">{formatDate(d.createdAt)}</td>
+                      <td className="num-col">{formatDate(d.createdAt, timezone)}</td>
                       <td className="num-col">{formatMass(d.massG)}</td>
                       <td className="num-col">
                         {kg > 0 ? (
@@ -346,7 +346,7 @@ export function GcDashboardPage() {
 /* ------------------------- Available donations ------------------------ */
 
 export function GcDonationsPage() {
-  const { session, donations, requests, food, submitRequest, navigate, setToast } =
+  const { session, donations, requests, food, submitRequest, navigate, setToast, timezone } =
     useStore();
   const [status, setStatus] = useState("Pending");
 
@@ -520,7 +520,7 @@ export function GcDonationsPage() {
 /* ------------------------- Donation detail --------------------------- */
 
 export function GcDonationDetailPage({ id }: { id: string }) {
-  const { session, donations, requests, food, events, submitRequest, navigate } =
+  const { session, donations, requests, food, events, submitRequest, navigate, timezone } =
     useStore();
 
   if (!session) return null;
@@ -643,7 +643,7 @@ export function GcDonationDetailPage({ id }: { id: string }) {
               <span className="eyebrow">Donation mass</span>
               <span className="estimate-value">{donation.massG.toLocaleString("en-US")} g</span>
               <span className="estimate-sub">
-                Status {donation.status} · created {formatDateTime(donation.createdAt)}
+                Status {donation.status} · created {formatDateTime(donation.createdAt, timezone)}
               </span>
             </div>
 
@@ -699,7 +699,7 @@ export function GcDonationDetailPage({ id }: { id: string }) {
                         <tr key={e.id}>
                           <td>
                             <span className="cell-strong">{e.label}</span>
-                            <span className="cell-sub">{formatDateTime(e.occurredAt)}</span>
+                            <span className="cell-sub">{formatDateTime(e.occurredAt, timezone)}</span>
                           </td>
                           <td className="num-col">{formatMass(e.massG)}</td>
                           <td className="num-col">
@@ -752,7 +752,7 @@ function requestCo2e(
 }
 
 export function GcRequestsPage() {
-  const { session, requests, donations, food, events, navigate } = useStore();
+  const { session, requests, donations, food, events, navigate, timezone } = useStore();
   const [status, setStatus] = useState("All");
 
   if (!session) return null;
@@ -823,9 +823,9 @@ export function GcRequestsPage() {
                   <td>
                     <StatusBadge label={r.status} variant={requestStatusVariant(r.status)} />
                   </td>
-                  <td className="num-col">{formatDateTime(r.submittedAt)}</td>
+                  <td className="num-col">{formatDateTime(r.submittedAt, timezone)}</td>
                   <td className="num-col">
-                    {r.decidedAt ? formatDateTime(r.decidedAt) : "—"}
+                    {r.decidedAt ? formatDateTime(r.decidedAt, timezone) : "—"}
                   </td>
                   <td className="num-col">
                     {lockerLabel ? (
@@ -898,7 +898,7 @@ export function GcRequestsPage() {
  * barcode squeezed into a table cell.
  */
 export function GcPickupBarcodePage({ id }: { id?: string }) {
-  const { session, requests, food, donations, navigate } = useStore();
+  const { session, requests, food, donations, navigate, timezone } = useStore();
   const [selected, setSelected] = useState(id ?? "");
 
   if (!session) return null;
@@ -1071,7 +1071,7 @@ export function GcPickupBarcodePage({ id }: { id?: string }) {
 /* ------------------------- Received history -------------------------- */
 
 export function GcHistoryPage() {
-  const { session, donations, requests, events } = useStore();
+  const { session, donations, requests, events, timezone } = useStore();
 
   if (!session) return null;
   const completedIds = requests
@@ -1155,7 +1155,7 @@ export function GcHistoryPage() {
                         <span className="cell-sub">{d.id} · from {d.createdBy}</span>
                       </td>
                       <td className="num-col">
-                        {d.completedAt ? formatDateTime(d.completedAt) : "—"}
+                        {d.completedAt ? formatDateTime(d.completedAt, timezone) : "—"}
                       </td>
                       <td className="num-col">{formatMass(d.massG)}</td>
                       <td className="num-col">

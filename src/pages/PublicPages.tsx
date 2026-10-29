@@ -275,7 +275,7 @@ export function AboutPage() {
 /* --------------------------- Public lookup --------------------------- */
 
 export function PublicLookupPage() {
-  const { food, navigate } = useStore();
+  const { food, navigate, timezone } = useStore();
   const [query, setQuery] = useState("");
   const [result, setResult] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -352,7 +352,7 @@ export function PublicLookupPage() {
                     { label: "Identifier", value: item.id },
                     { label: "Category", value: `${item.category} · ${item.subcategory}` },
                     { label: "Status", value: <Badge variant={foodStatusVariant(item.status)}>{item.status}</Badge> },
-                    { label: "Stored on", value: formatDate(item.storedAt) },
+                    { label: "Stored on", value: formatDate(item.storedAt, timezone) },
                   ]}
                 />
                 <div className="notice">

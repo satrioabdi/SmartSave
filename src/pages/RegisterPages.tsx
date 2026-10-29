@@ -20,6 +20,7 @@ import { IconGift } from "../components/icons";
 import { useStore } from "../lib/store";
 import { formatMass } from "../lib/carbon";
 import {
+  demoNow,
   expiredWithinGrace,
   formatDateTime,
   isExpiringSoon,
@@ -37,11 +38,19 @@ export { RegisterFoodPage } from "./RegisterWizard";
 
 /* ----------------------- Expiry Notifications ------------------------- */
 
+/**
+ * Demo vantage point requested by the reviewer: 7 Nov 2026, 10:00 KST — the
+ * day the simulation should show expired + about-to-expire + donateable food.
+ * 10:00 KST = 01:00 UTC.
+ */
+const NOV7_VANTAGE = "2026-11-07T01:00:00.000Z";
+
 export function ExpiryNotificationsPage() {
-  const { session, food, notifications, navigate, collectFood, markNotificationsRead } =
+  const { session, food, notifications, navigate, collectFood, markNotificationsRead, timezone, demoClock, setDemoClock: setClock } =
     useStore();
   const [period, setPeriod] = useState<Period>("Daily");
-  const [now] = useState(() => new Date());
+  // Re-read on each render so switching the demo clock updates the page.
+  const now = demoNow();
 
   if (!session) return null;
   const mine = food.filter((f) => f.ownerUserId === session.userId);
@@ -78,8 +87,39 @@ export function ExpiryNotificationsPage() {
         <SimulationBanner>
           Website notifications only — no email or push channel is configured.
           The two-hour reminder and one-hour follow-up are simulated here; a real
-          deployment runs them on a backend scheduler.
+          deployment runs them on a backend scheduler. All times render in the
+          selected country's zone ({timezone}).
         </SimulationBanner>
+
+        <Panel
+          title="Demo clock — view as a given day (simulation)"
+          description="Freeze the clock to review the expiry simulation from a chosen vantage point"
+        >
+          <PolicyBox>
+            The dataset includes food expiring 27–30 Oct, 1–7 Nov, 8 Nov hour by
+            hour (08:00–19:00 KST) and 9–10 Nov 2026. Pick <strong>7 Nov
+            2026, 10:00 KST</strong> to see the requested Nov-7 state: some food
+            already expired (handed over), one record inside the grace window,
+            one inside the 2-hour reminder window, and surplus food still
+            donateable — including examples to donate.
+          </PolicyBox>
+          <div className="button-row">
+            <button
+              type="button"
+              className={`button button--sm ${demoClock === NOV7_VANTAGE ? "button--primary" : "button--secondary"}`}
+              onClick={() => setClock(NOV7_VANTAGE)}
+            >
+              View as 7 Nov 2026, 10:00 KST
+            </button>
+            <button
+              type="button"
+              className={`button button--sm ${demoClock === null ? "button--primary" : "button--secondary"}`}
+              onClick={() => setClock(null)}
+            >
+              Back to real time
+            </button>
+          </div>
+        </Panel>
 
         <Panel
           title="How the expiry rule works (§10 / §11)"
@@ -168,7 +208,7 @@ export function ExpiryNotificationsPage() {
                   rows={[
                     { label: "Food ID", value: f.id },
                     { label: "Quantity", value: formatMass(f.massG) },
-                    { label: "Expires", value: formatDateTime(f.expiresAt) },
+                    { label: "Expires", value: formatDateTime(f.expiresAt, timezone) },
                   ]}
                 />
 
@@ -238,7 +278,7 @@ export function ExpiryNotificationsPage() {
                         <span className="cell-sub">{f.id} · {f.category}</span>
                       </td>
                       <td className="num-col">{f.ownerLabel}</td>
-                      <td className="num-col">{formatDateTime(f.expiresAt)}</td>
+                      <td className="num-col">{formatDateTime(f.expiresAt, timezone)}</td>
                       <td className="num-col">{relativeTime(f.expiresAt)}</td>
                       <td className="num-col">{formatMass(f.massG)}</td>
                       <td>
@@ -297,7 +337,7 @@ export function ExpiryNotificationsPage() {
                           : "System"}
                     </Badge>
                   </td>
-                  <td className="num-col">{formatDateTime(n.createdAt)}</td>
+                  <td className="num-col">{formatDateTime(n.createdAt, timezone)}</td>
                   <td>
                     <Badge variant={n.delivery === "Failed" ? "danger" : "success"}>
                       {n.delivery}

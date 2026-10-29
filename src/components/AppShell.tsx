@@ -1,8 +1,9 @@
-/** Authenticated app shell: sidebar + topbar with notifications and profile. */
+/** Authenticated app shell: sidebar + topbar with notifications, timezone picker and profile. */
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { navFor } from "../lib/nav";
 import {
   ROUTE_PATH,
+  TIMEZONE_OPTIONS,
   useStore,
   type Route,
 } from "../lib/store";
@@ -45,13 +46,15 @@ export function AppShell({
   children: ReactNode;
   title: string;
 }) {
-  const { session, route, navigate, signOut, notifications, markNotificationsRead } =
+  const { session, route, navigate, signOut, notifications, markNotificationsRead, timezone, setTimezone, demoClock, setDemoClock } =
     useStore();
   const [drawer, setDrawer] = useState(false);
   const [bellOpen, setBellOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
+  const [tzOpen, setTzOpen] = useState(false);
   const bellRef = useRef<HTMLDivElement>(null);
   const profileRef = useRef<HTMLDivElement>(null);
+  const tzRef = useRef<HTMLDivElement>(null);
 
   const groups = session ? navFor(session.role) : [];
   const unread = notifications.filter((n) => !n.read).length;
@@ -64,12 +67,16 @@ export function AppShell({
       if (bellRef.current && !bellRef.current.contains(t)) setBellOpen(false);
       if (profileRef.current && !profileRef.current.contains(t))
         setProfileOpen(false);
+      if (tzRef.current && !tzRef.current.contains(t)) setTzOpen(false);
     }
     document.addEventListener("mousedown", onDocClick);
     return () => document.removeEventListener("mousedown", onDocClick);
   }, []);
 
   if (!session) return null;
+
+  const tzLabel =
+    TIMEZONE_OPTIONS.find((o) => o.zone === timezone)?.label ?? timezone;
 
   const isActive = (r: Route) =>
     ROUTE_PATH[r.name] === ROUTE_PATH[route.name] &&
@@ -147,6 +154,48 @@ export function AppShell({
           </div>
 
           <div className="topbar-right">
+            <div className="relative" ref={tzRef}>
+              <button
+                type="button"
+                className="tz-trigger"
+                aria-label={`Time zone: ${tzLabel}. Change the demo country.`}
+                onClick={() => {
+                  setTzOpen((v) => !v);
+                  setBellOpen(false);
+                  setProfileOpen(false);
+                }}
+              >
+                <strong>{tzLabel.split(" — ")[0]}</strong>
+                <span className="tz-country">{tzLabel.split(" — ")[1] ?? ""}</span>
+              </button>
+              {tzOpen && (
+                <div className="popover" style={{ width: 280 }}>
+                  <div className="popover-title">Country / time zone (demo)</div>
+                  <div className="popover-empty" style={{ padding: "4px 0 8px" }}>
+                    All dates and times on every page render in the selected
+                    country's zone. Default: KST — Korea Selatan.
+                  </div>
+                  {TIMEZONE_OPTIONS.map((o) => (
+                    <button
+                      key={o.zone}
+                      type="button"
+                      className="popover-item"
+                      onClick={() => {
+                        setTimezone(o.zone);
+                        setTzOpen(false);
+                      }}
+                    >
+                      <strong>
+                        {o.label}
+                        {o.zone === timezone ? " ✓" : ""}
+                      </strong>
+                      <span>{o.country} · {o.zone}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
             <div className="relative" ref={bellRef}>
               <button
                 type="button"

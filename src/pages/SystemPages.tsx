@@ -19,7 +19,7 @@ import { avatarClass, formatDate, initials, roleVariant } from "../lib/format";
 /* ---------------------------- Profile -------------------------------- */
 
 export function ProfilePage() {
-  const { session, accounts, food, donations, requests, events, signOut, setToast } =
+  const { session, accounts, food, donations, requests, events, signOut, setToast, timezone } =
     useStore();
   const [name, setName] = useState(session?.name ?? "");
   const [email, setEmail] = useState("");
@@ -76,7 +76,7 @@ export function ProfilePage() {
                   { label: "Email", value: account?.email ?? "—" },
                   { label: "Organization", value: account?.organization ?? "—" },
                   { label: "Address", value: account?.address ?? "—" },
-                  { label: "Joined", value: account ? formatDate(account.createdAt) : "—" },
+                  { label: "Joined", value: account ? formatDate(account.createdAt, timezone) : "—" },
                 ]}
               />
 

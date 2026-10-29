@@ -29,9 +29,12 @@ import {
 } from "../data/compartments";
 import {
   addDays,
+  DEFAULT_TIMEZONE,
   effectiveFoodStatus,
   expiredWithinGrace,
   ownerActionOpen,
+  setDemoClock,
+  TIMEZONE_OPTIONS,
 } from "./format";
 import type {
   Account,
@@ -234,6 +237,10 @@ interface AppState {
   notifications: NotificationEvent[];
   logs: ActivityLog[];
   toast: string | null;
+  /** IANA zone all datetimes are rendered in (demo country picker). */
+  timezone: string;
+  /** Demo simulation clock ISO string, or null for the real clock. */
+  demoClock: string | null;
 }
 
 interface AppActions {
@@ -299,6 +306,13 @@ interface AppActions {
   markNotificationsRead: () => void;
   updateShelfLife: (categoryId: string, days: number) => void;
   setToast: (msg: string | null) => void;
+  /** Switch the demo country/timezone all datetimes render in. */
+  setTimezone: (zone: string) => void;
+  /**
+   * Freeze the demo clock at an ISO instant (e.g. "view as Nov 7") or null to
+   * follow the real clock. Session-only; banners mark it as simulation.
+   */
+  setDemoClock: (iso: string | null) => void;
 }
 
 const noopActions: AppActions = {
@@ -318,6 +332,8 @@ const noopActions: AppActions = {
   markNotificationsRead: () => {},
   updateShelfLife: () => {},
   setToast: () => {},
+  setTimezone: () => {},
+  setDemoClock: () => {},
 };
 
 const StoreContext = createContext<AppState & AppActions>({
@@ -332,6 +348,8 @@ const StoreContext = createContext<AppState & AppActions>({
   notifications: SEED_NOTIFICATIONS,
   logs: SEED_LOGS,
   toast: null,
+  timezone: DEFAULT_TIMEZONE,
+  demoClock: null,
   ...noopActions,
 });
 
@@ -353,6 +371,20 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     useState<NotificationEvent[]>(SEED_NOTIFICATIONS);
   const [logs, setLogs] = useState<ActivityLog[]>(SEED_LOGS);
   const [toast, setToast] = useState<string | null>(null);
+  // Demo country/timezone: every datetime renders in this zone (KST default).
+  const [timezone, setTimezoneState] = useState<string>(DEFAULT_TIMEZONE);
+  // Demo simulation clock — null follows the real time; an ISO string freezes
+  // every "now" comparison so the dataset can be reviewed as if on a given day.
+  const [demoClock, setDemoClockState] = useState<string | null>(null);
+
+  const setTimezone = useCallback((zone: string) => {
+    setTimezoneState(zone);
+  }, []);
+
+  const setDemoClockAction = useCallback((iso: string | null) => {
+    setDemoClock(iso); // module-level: format.ts helpers read it
+    setDemoClockState(iso); // re-render trigger
+  }, []);
 
   const showToast = useCallback((msg: string | null) => {
     setToast(msg);
@@ -1011,6 +1043,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       notifications,
       logs,
       toast,
+      timezone,
+      demoClock,
       navigate,
       signIn,
       signOut,
@@ -1027,6 +1061,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       markNotificationsRead,
       updateShelfLife,
       setToast: showToast,
+      setTimezone,
+      setDemoClock: setDemoClockAction,
     }),
     [
       session,
@@ -1039,6 +1075,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       notifications,
       logs,
       toast,
+      timezone,
+      demoClock,
       navigate,
       signIn,
       signOut,
@@ -1055,6 +1093,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       markNotificationsRead,
       updateShelfLife,
       showToast,
+      setTimezone,
+      setDemoClockAction,
     ],
   );
 
@@ -1072,3 +1112,6 @@ export function homeFor(role: Role): Route {
   if (role === "Green Community") return { name: "gc-dashboard" };
   return { name: "user-dashboard" };
 }
+
+/** Demo country/timezone picker options (re-export for the shell). */
+export { TIMEZONE_OPTIONS };

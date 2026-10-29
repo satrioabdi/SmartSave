@@ -51,7 +51,7 @@ export function Barcode({ code }: { code: string }) {
 }
 
 /** Public-facing label: identifier, category, status, contribution message. */
-export function LabelCard({ item }: { item: FoodItem }) {
+export function LabelCard({ item, zone }: { item: FoodItem; zone?: string }) {
   return (
     <div className="label-card">
       <div className="stack stack--sm">
@@ -70,7 +70,7 @@ export function LabelCard({ item }: { item: FoodItem }) {
             {item.compartmentLabel && (
               <span>Compartment: {item.compartmentLabel}</span>
             )}
-            <span>Stored: {formatDate(item.storedAt)}</span>
+            <span>Stored: {formatDate(item.storedAt, zone)}</span>
           </div>
         </div>
         <Barcode code={item.barcode} />
@@ -84,13 +84,13 @@ export function LabelCard({ item }: { item: FoodItem }) {
  * Authenticated detail: adds the computed contribution under the message
  * (requirement §5), with factor, unit, source, formula and disclosure (§6.2).
  */
-export function DetailLabelCard({ item }: { item: FoodItem }) {
+export function DetailLabelCard({ item, zone }: { item: FoodItem; zone?: string }) {
   const resolution = resolveForItem(item.category, item.subcategory, item.subtype);
   const value = computeCarbon(item.massG, resolution);
 
   return (
     <div className="stack">
-      <LabelCard item={item} />
+      <LabelCard item={item} zone={zone} />
       <div className="panel">
         <div className="panel-head">
           <div>

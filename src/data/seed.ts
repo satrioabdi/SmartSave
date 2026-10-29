@@ -4,7 +4,7 @@
  */
 import { resolveFactor, resolveShelfLife } from "./catalog";
 import { SEED_COMPARTMENTS } from "./compartments";
-import { addDays } from "../lib/format";
+import { addDays, wallTimeToIso } from "../lib/format";
 import type {
   Account,
   ActivityLog,
@@ -19,6 +19,25 @@ const NOW = Date.now();
 const iso = (offsetMs: number) => new Date(NOW + offsetMs).toISOString();
 const HOUR = 3600000;
 const DAY = 24 * HOUR;
+
+/** Default demo zone (KST) used to anchor the requested expiry simulation. */
+const DEMO_ZONE = "Asia/Seoul";
+
+/**
+ * Wall-clock expiry in the demo zone. The reviewer asked for food expiring on
+ * given dates and hours (KST), so the dataset anchors those examples to the
+ * wall clock of Asia/Seoul rather than to page-load time.
+ */
+const atZone = (
+  y: number,
+  monthIndex: number,
+  d: number,
+  h: number,
+  min = 0,
+) => wallTimeToIso(y, monthIndex, d, h, min, DEMO_ZONE);
+
+/** Calendar dates used by the requested simulation (October–November 2026). */
+const SIM_Y = 2026;
 
 export const ACCOUNTS: Account[] = [
   {
@@ -85,6 +104,11 @@ interface SeedFood {
    * shelf-life rule (storedAt + shelf.days = expiresAt).
    */
   expiresInMs?: number;
+  /**
+   * Demo only: pin expiry to an absolute instant (wall clock in the demo
+   * zone) — used by the requested date-based simulation records below.
+   */
+  expiresAtIso?: string;
 }
 
 const SEED: SeedFood[] = [
@@ -119,6 +143,74 @@ const SEED: SeedFood[] = [
   // record sits in the Manager's waste-bank list and is no longer
   // collectible or donatable by its owner.
   { id: "FD-1064", name: "Water spinach bundle", category: "Vegetables", subcategory: "Cabbage and Similar", massG: 2300, storedAt: iso(-7 * DAY), status: "Expired", owner: "u-1", ownerLabel: "Nadia Prameswari", photoLabel: "water-spinach.jpg", freshness: "fit" },
+
+  /* ----------------------- Expiry simulation (KST) ----------------------
+   * Requested demo dataset: food expiring on fixed calendar dates and hours
+   * in Korea Standard Time, covering 27–30 Oct, 1–7 Nov, 8 Nov hour by hour
+   * (08:00–19:00), and 9–10 Nov 2026. Each record's storedAt keeps the
+   * storedAt + shelf-rule = expiresAt invariant so labels stay consistent.
+   * --------------------------------------------------------------------- */
+
+  // 27–30 October 2026 — already expired, handed over to the waste bank.
+  { id: "FD-1070", name: "Pumpkin box", category: "Vegetables", subcategory: "Root Vegetables", massG: 3100, storedAt: atZone(SIM_Y, 9, 22, 9), status: "Expired", owner: "u-4", ownerLabel: "Sinta Larasati", photoLabel: "pumpkin-box.jpg", freshness: "fit", expiresAtIso: atZone(SIM_Y, 9, 27, 8) },
+  { id: "FD-1071", name: "Spinach bags", category: "Vegetables", subcategory: "Cabbage and Similar", massG: 1800, storedAt: atZone(SIM_Y, 9, 22, 10), status: "Expired", owner: "u-4", ownerLabel: "Sinta Larasati", photoLabel: "spinach-bags.jpg", freshness: "fit", expiresAtIso: atZone(SIM_Y, 9, 27, 14) },
+  { id: "FD-1072", name: "Steamed buns", category: "Prepared and Cooked Food", subcategory: "Carbohydrate", subtype: "Wheat and Rye", massG: 2400, storedAt: atZone(SIM_Y, 9, 24, 9), status: "Expired", owner: "u-5", ownerLabel: "Yoga Pratama", photoLabel: "steamed-buns.jpg", freshness: "fit", expiresAtIso: atZone(SIM_Y, 9, 28, 9) },
+  { id: "FD-1073", name: "Grapes punnet", category: "Fruit", subcategory: "Berries and Grapes", massG: 1400, storedAt: atZone(SIM_Y, 9, 23, 11), status: "Expired", owner: "u-5", ownerLabel: "Yoga Pratama", photoLabel: "grapes-punnet.jpg", freshness: "fit", expiresAtIso: atZone(SIM_Y, 9, 28, 11) },
+  { id: "FD-1074", name: "Corn cobs", category: "Prepared and Cooked Food", subcategory: "Carbohydrate", subtype: "Corn/Maize", massG: 2600, storedAt: atZone(SIM_Y, 9, 25, 8), status: "Expired", owner: "u-1", ownerLabel: "Nadia Prameswari", photoLabel: "corn-cobs.jpg", freshness: "fit", expiresAtIso: atZone(SIM_Y, 9, 29, 8) },
+  { id: "FD-1075", name: "Soy milk bottles", category: "Beverages", subcategory: "Soy Milk", massG: 2900, storedAt: atZone(SIM_Y, 9, 26, 10), status: "Expired", owner: "u-1", ownerLabel: "Nadia Prameswari", photoLabel: "soy-milk.jpg", freshness: "fit", expiresAtIso: atZone(SIM_Y, 9, 29, 10) },
+  { id: "FD-1076", name: "Tangerine crate", category: "Fruit", subcategory: "Citrus Fruit", massG: 4200, storedAt: atZone(SIM_Y, 9, 25, 9), status: "Expired", owner: "u-4", ownerLabel: "Sinta Larasati", photoLabel: "tangerine-crate.jpg", freshness: "fit", expiresAtIso: atZone(SIM_Y, 9, 30, 9) },
+  { id: "FD-1077", name: "Boiled potatoes", category: "Prepared and Cooked Food", subcategory: "Carbohydrate", subtype: "Potatoes", massG: 3300, storedAt: atZone(SIM_Y, 9, 25, 13), status: "Expired", owner: "u-4", ownerLabel: "Sinta Larasati", photoLabel: "boiled-potatoes.jpg", freshness: "fit", expiresAtIso: atZone(SIM_Y, 9, 30, 13) },
+
+  // 1–7 November 2026 — spans past (1–6 Nov, expired) to the demo "today"
+  // (7 Nov): some hours already behind, one inside the grace/reminder windows.
+  { id: "FD-1080", name: "Oatmeal packs", category: "Prepared and Cooked Food", subcategory: "Carbohydrate", subtype: "Oats", massG: 1500, storedAt: atZone(SIM_Y, 9, 29, 9), status: "Expired", owner: "u-1", ownerLabel: "Nadia Prameswari", photoLabel: "oatmeal-packs.jpg", freshness: "fit", expiresAtIso: atZone(SIM_Y, 10, 1, 8) },
+  { id: "FD-1081", name: "Strawberry trays", category: "Fruit", subcategory: "Berries and Grapes", massG: 1700, storedAt: atZone(SIM_Y, 9, 29, 13), status: "Expired", owner: "u-1", ownerLabel: "Nadia Prameswari", photoLabel: "strawberry-trays.jpg", freshness: "fit", expiresAtIso: atZone(SIM_Y, 10, 1, 13) },
+  { id: "FD-1082", name: "Cabbage heads", category: "Vegetables", subcategory: "Cabbage and Similar", massG: 3600, storedAt: atZone(SIM_Y, 9, 30, 9), status: "Expired", owner: "u-4", ownerLabel: "Sinta Larasati", photoLabel: "cabbage-heads.jpg", freshness: "fit", expiresAtIso: atZone(SIM_Y, 10, 2, 8) },
+  { id: "FD-1083", name: "Grilled chicken", category: "Prepared and Cooked Food", subcategory: "Protein", subtype: "Poultry", massG: 2800, storedAt: atZone(SIM_Y, 9, 30, 12), status: "Expired", owner: "u-4", ownerLabel: "Sinta Larasati", photoLabel: "grilled-chicken.jpg", freshness: "fit", expiresAtIso: atZone(SIM_Y, 10, 2, 12) },
+  { id: "FD-1084", name: "Mandarin baskets", category: "Fruit", subcategory: "Citrus Fruit", massG: 3900, storedAt: atZone(SIM_Y, 10, 1, 9), status: "Expired", owner: "u-5", ownerLabel: "Yoga Pratama", photoLabel: "mandarin-baskets.jpg", freshness: "fit", expiresAtIso: atZone(SIM_Y, 10, 3, 9) },
+  { id: "FD-1085", name: "Cooked pasta", category: "Prepared and Cooked Food", subcategory: "Carbohydrate", subtype: "Wheat and Rye", massG: 2200, storedAt: atZone(SIM_Y, 10, 1, 10), status: "Expired", owner: "u-5", ownerLabel: "Yoga Pratama", photoLabel: "cooked-pasta.jpg", freshness: "fit", expiresAtIso: atZone(SIM_Y, 10, 3, 10) },
+  { id: "FD-1086", name: "Carrot sacks", category: "Vegetables", subcategory: "Root Vegetables", massG: 3400, storedAt: atZone(SIM_Y, 10, 2, 9), status: "Expired", owner: "u-1", ownerLabel: "Nadia Prameswari", photoLabel: "carrot-sacks.jpg", freshness: "fit", expiresAtIso: atZone(SIM_Y, 10, 4, 9) },
+  { id: "FD-1087", name: "Farmed fish fillets", category: "Prepared and Cooked Food", subcategory: "Protein", subtype: "Farmed Fish", massG: 1900, storedAt: atZone(SIM_Y, 10, 2, 11), status: "Expired", owner: "u-1", ownerLabel: "Nadia Prameswari", photoLabel: "fish-fillets.jpg", freshness: "fit", expiresAtIso: atZone(SIM_Y, 10, 4, 11) },
+  { id: "FD-1088", name: "Onion nets", category: "Onions and Related Items", subcategory: "Onion and Leek", massG: 4700, storedAt: atZone(SIM_Y, 10, 3, 9), status: "Stored", owner: "u-4", ownerLabel: "Sinta Larasati", photoLabel: "onion-nets.jpg", freshness: "fit", expiresAtIso: atZone(SIM_Y, 10, 5, 8) },
+  { id: "FD-1089", name: "Tofu blocks", category: "Prepared and Cooked Food", subcategory: "Protein", subtype: "Tofu/Processed Soy", massG: 1600, storedAt: atZone(SIM_Y, 10, 3, 12), status: "Expired", owner: "u-4", ownerLabel: "Sinta Larasati", photoLabel: "tofu-blocks.jpg", freshness: "fit", expiresAtIso: atZone(SIM_Y, 10, 5, 12) },
+  { id: "FD-1090", name: "Pear boxes", category: "Fruit", subcategory: "Other Fruit", massG: 4100, storedAt: atZone(SIM_Y, 10, 4, 9), status: "Stored", owner: "u-5", ownerLabel: "Yoga Pratama", photoLabel: "pear-boxes.jpg", freshness: "fit", expiresAtIso: atZone(SIM_Y, 10, 6, 8) },
+  { id: "FD-1091", name: "Bread rolls", category: "Prepared and Cooked Food", subcategory: "Carbohydrate", subtype: "Wheat and Rye", massG: 2100, storedAt: atZone(SIM_Y, 10, 4, 10), status: "Expired", owner: "u-5", ownerLabel: "Yoga Pratama", photoLabel: "bread-rolls.jpg", freshness: "fit", expiresAtIso: atZone(SIM_Y, 10, 6, 10) },
+  { id: "FD-1092", name: "Kimchi jars", category: "Vegetables", subcategory: "Other Vegetables", massG: 2500, storedAt: atZone(SIM_Y, 10, 5, 9), status: "Stored", owner: "u-1", ownerLabel: "Nadia Prameswari", photoLabel: "kimchi-jars.jpg", freshness: "fit", expiresAtIso: atZone(SIM_Y, 10, 7, 9) },
+  // 7 Nov — the requested vantage day: expired this morning (handover demo),
+  // inside the grace window (collect/donate still open), inside the 2-hour
+  // reminder window, and surplus still donateable.
+  { id: "FD-1093", name: "Morning rice boxes", category: "Prepared and Cooked Food", subcategory: "Carbohydrate", subtype: "Rice", massG: 2700, storedAt: atZone(SIM_Y, 10, 4, 9), status: "Expired", owner: "u-1", ownerLabel: "Nadia Prameswari", photoLabel: "morning-rice.jpg", freshness: "fit", expiresAtIso: atZone(SIM_Y, 10, 7, 6) },
+  { id: "FD-1094", name: "Vegetable soup pots", category: "Prepared and Cooked Food", subcategory: "Mixed dish", subtype: "Mixed dish", massG: 3000, storedAt: atZone(SIM_Y, 10, 4, 10), status: "Stored", owner: "u-1", ownerLabel: "Nadia Prameswari", photoLabel: "veg-soup.jpg", freshness: "fit", expiresAtIso: atZone(SIM_Y, 10, 7, 7, 30) },
+  { id: "FD-1095", name: "Fresh apple crates", category: "Fruit", subcategory: "Apple", massG: 5200, storedAt: atZone(SIM_Y, 10, 2, 9), status: "Stored", owner: "u-1", ownerLabel: "Nadia Prameswari", photoLabel: "apple-crates.jpg", freshness: "fit", expiresAtIso: atZone(SIM_Y, 10, 7, 9, 45) },
+  { id: "FD-1096", name: "Milk cartons batch", category: "Beverages", subcategory: "Cow's Milk", massG: 3800, storedAt: atZone(SIM_Y, 10, 4, 8), status: "Stored", owner: "u-4", ownerLabel: "Sinta Larasati", photoLabel: "milk-cartons.jpg", freshness: "fit", expiresAtIso: atZone(SIM_Y, 10, 7, 13) },
+  { id: "FD-1097", name: "Egg cartons demo", category: "Prepared and Cooked Food", subcategory: "Protein", subtype: "Eggs", massG: 2200, storedAt: atZone(SIM_Y, 10, 2, 9), status: "Stored", owner: "u-4", ownerLabel: "Sinta Larasati", photoLabel: "egg-cartons.jpg", freshness: "fit", expiresAtIso: atZone(SIM_Y, 10, 7, 18) },
+
+  // 8 November 2026, hour by hour 08:00–19:00 KST — the requested hourly
+  // ladder; each hour one record expires.
+  { id: "FD-1100", name: "Rice porridge pots 08", category: "Prepared and Cooked Food", subcategory: "Carbohydrate", subtype: "Rice", massG: 2800, storedAt: atZone(SIM_Y, 10, 5, 8), status: "Stored", owner: "u-1", ownerLabel: "Nadia Prameswari", photoLabel: "rice-porridge.jpg", freshness: "fit", expiresAtIso: atZone(SIM_Y, 10, 8, 8) },
+  { id: "FD-1101", name: "Soybean soup 09", category: "Prepared and Cooked Food", subcategory: "Mixed dish", subtype: "Mixed dish", massG: 2400, storedAt: atZone(SIM_Y, 10, 5, 9), status: "Stored", owner: "u-1", ownerLabel: "Nadia Prameswari", photoLabel: "soybean-soup.jpg", freshness: "fit", expiresAtIso: atZone(SIM_Y, 10, 8, 9) },
+  { id: "FD-1102", name: "Banana bundles 10", category: "Fruit", subcategory: "Banana", massG: 3300, storedAt: atZone(SIM_Y, 10, 3, 10), status: "Stored", owner: "u-1", ownerLabel: "Nadia Prameswari", photoLabel: "banana-bundles.jpg", freshness: "fit", expiresAtIso: atZone(SIM_Y, 10, 8, 10) },
+  { id: "FD-1103", name: "Steamed eggs 11", category: "Prepared and Cooked Food", subcategory: "Protein", subtype: "Eggs", massG: 1700, storedAt: atZone(SIM_Y, 10, 5, 11), status: "Stored", owner: "u-4", ownerLabel: "Sinta Larasati", photoLabel: "steamed-eggs.jpg", freshness: "fit", expiresAtIso: atZone(SIM_Y, 10, 8, 11) },
+  { id: "FD-1104", name: "Lunch meal trays 12", category: "Prepared and Cooked Food", subcategory: "Mixed dish", subtype: "Mixed dish", massG: 4100, storedAt: atZone(SIM_Y, 10, 5, 12), status: "Stored", owner: "u-4", ownerLabel: "Sinta Larasati", photoLabel: "lunch-trays.jpg", freshness: "fit", expiresAtIso: atZone(SIM_Y, 10, 8, 12) },
+  { id: "FD-1105", name: "Wheat noodles 13", category: "Prepared and Cooked Food", subcategory: "Carbohydrate", subtype: "Wheat and Rye", massG: 2600, storedAt: atZone(SIM_Y, 10, 5, 13), status: "Stored", owner: "u-4", ownerLabel: "Sinta Larasati", photoLabel: "wheat-noodles.jpg", freshness: "fit", expiresAtIso: atZone(SIM_Y, 10, 8, 13) },
+  { id: "FD-1106", name: "Spinach packs 14", category: "Vegetables", subcategory: "Cabbage and Similar", massG: 2000, storedAt: atZone(SIM_Y, 10, 3, 14), status: "Stored", owner: "u-5", ownerLabel: "Yoga Pratama", photoLabel: "spinach-packs.jpg", freshness: "fit", expiresAtIso: atZone(SIM_Y, 10, 8, 14) },
+  { id: "FD-1107", name: "Casserole trays 15", category: "Prepared and Cooked Food", subcategory: "Mixed dish", subtype: "Mixed dish", massG: 3600, storedAt: atZone(SIM_Y, 10, 5, 15), status: "Stored", owner: "u-5", ownerLabel: "Yoga Pratama", photoLabel: "casserole.jpg", freshness: "fit", expiresAtIso: atZone(SIM_Y, 10, 8, 15) },
+  { id: "FD-1108", name: "Tofu packs 16", category: "Prepared and Cooked Food", subcategory: "Protein", subtype: "Tofu/Processed Soy", massG: 1900, storedAt: atZone(SIM_Y, 10, 5, 16), status: "Stored", owner: "u-5", ownerLabel: "Yoga Pratama", photoLabel: "tofu-packs.jpg", freshness: "fit", expiresAtIso: atZone(SIM_Y, 10, 8, 16) },
+  { id: "FD-1109", name: "Melon crates 17", category: "Fruit", subcategory: "Other Fruit", massG: 4400, storedAt: atZone(SIM_Y, 10, 3, 17), status: "Stored", owner: "u-1", ownerLabel: "Nadia Prameswari", photoLabel: "melon-crates.jpg", freshness: "fit", expiresAtIso: atZone(SIM_Y, 10, 8, 17) },
+  { id: "FD-1110", name: "Fish soup 18", category: "Prepared and Cooked Food", subcategory: "Mixed dish", subtype: "Mixed dish", massG: 3100, storedAt: atZone(SIM_Y, 10, 5, 18), status: "Stored", owner: "u-1", ownerLabel: "Nadia Prameswari", photoLabel: "fish-soup.jpg", freshness: "fit", expiresAtIso: atZone(SIM_Y, 10, 8, 18) },
+  { id: "FD-1111", name: "Night rice rolls 19", category: "Prepared and Cooked Food", subcategory: "Carbohydrate", subtype: "Rice", massG: 2300, storedAt: atZone(SIM_Y, 10, 5, 19), status: "Stored", owner: "u-1", ownerLabel: "Nadia Prameswari", photoLabel: "rice-rolls.jpg", freshness: "fit", expiresAtIso: atZone(SIM_Y, 10, 8, 19) },
+
+  // 9–10 November 2026 — the far end of the requested window: surplus food
+  // approaching expiry, still donateable.
+  { id: "FD-1112", name: "Fresh radish crates", category: "Vegetables", subcategory: "Root Vegetables", massG: 3700, storedAt: atZone(SIM_Y, 10, 5, 9), status: "Stored", owner: "u-4", ownerLabel: "Sinta Larasati", photoLabel: "radish-crates.jpg", freshness: "fit", expiresAtIso: atZone(SIM_Y, 10, 9, 8) },
+  { id: "FD-1113", name: "Cooked barley 09", category: "Prepared and Cooked Food", subcategory: "Carbohydrate", subtype: "Oats", massG: 2500, storedAt: atZone(SIM_Y, 10, 6, 9), status: "Stored", owner: "u-4", ownerLabel: "Sinta Larasati", photoLabel: "cooked-barley.jpg", freshness: "fit", expiresAtIso: atZone(SIM_Y, 10, 9, 9) },
+  { id: "FD-1114", name: "Orange sacks 10", category: "Fruit", subcategory: "Citrus Fruit", massG: 4300, storedAt: atZone(SIM_Y, 10, 4, 10), status: "Stored", owner: "u-5", ownerLabel: "Yoga Pratama", photoLabel: "orange-sacks.jpg", freshness: "fit", expiresAtIso: atZone(SIM_Y, 10, 9, 10) },
+  { id: "FD-1115", name: "Tofu soup 11", category: "Prepared and Cooked Food", subcategory: "Mixed dish", subtype: "Mixed dish", massG: 2900, storedAt: atZone(SIM_Y, 10, 6, 11), status: "Stored", owner: "u-5", ownerLabel: "Yoga Pratama", photoLabel: "tofu-soup.jpg", freshness: "fit", expiresAtIso: atZone(SIM_Y, 10, 9, 11) },
+  { id: "FD-1116", name: "Cabbage crates 12", category: "Vegetables", subcategory: "Cabbage and Similar", massG: 3800, storedAt: atZone(SIM_Y, 10, 4, 12), status: "Stored", owner: "u-1", ownerLabel: "Nadia Prameswari", photoLabel: "cabbage-crates.jpg", freshness: "fit", expiresAtIso: atZone(SIM_Y, 10, 9, 12) },
+  { id: "FD-1117", name: "Rice cake packs 13", category: "Prepared and Cooked Food", subcategory: "Carbohydrate", subtype: "Rice", massG: 2700, storedAt: atZone(SIM_Y, 10, 6, 13), status: "Stored", owner: "u-1", ownerLabel: "Nadia Prameswari", photoLabel: "rice-cakes.jpg", freshness: "fit", expiresAtIso: atZone(SIM_Y, 10, 9, 13) },
+  { id: "FD-1118", name: "Apple juice bottles", category: "Beverages", subcategory: "Other Beverages", massG: 4600, storedAt: atZone(SIM_Y, 10, 6, 14), status: "Stored", owner: "u-1", ownerLabel: "Nadia Prameswari", photoLabel: "apple-juice.jpg", freshness: "fit", expiresAtIso: atZone(SIM_Y, 10, 10, 8) },
+  { id: "FD-1119", name: "Mixed vegetables 09", category: "Vegetables", subcategory: "Other Vegetables", massG: 3200, storedAt: atZone(SIM_Y, 10, 5, 9), status: "Stored", owner: "u-1", ownerLabel: "Nadia Prameswari", photoLabel: "mixed-veg.jpg", freshness: "fit", expiresAtIso: atZone(SIM_Y, 10, 10, 9) },
+  { id: "FD-1120", name: "Sweet potato boxes", category: "Prepared and Cooked Food", subcategory: "Carbohydrate", subtype: "Potatoes", massG: 4900, storedAt: atZone(SIM_Y, 10, 5, 10), status: "Stored", owner: "u-4", ownerLabel: "Sinta Larasati", photoLabel: "sweet-potato.jpg", freshness: "fit", expiresAtIso: atZone(SIM_Y, 10, 10, 10) },
 ];
 
 function buildFood(): FoodItem[] {
@@ -153,16 +245,20 @@ function buildFood(): FoodItem[] {
   return SEED.map((s) => {
     const shelf = resolveShelfLife(s.category, s.subcategory, s.subtype);
     const factor = resolveFactor(s.category, s.subcategory, s.subtype);
-    // Pinned expiry (demo example): keep storedAt consistent with the shelf
-    // rule so storedAt + shelf.days still equals expiresAt.
+    // Absolute expiry (date-based simulation): keep storedAt consistent with
+    // the shelf rule so storedAt + shelf.days still equals expiresAt.
     const storedAt =
-      s.expiresInMs === undefined
-        ? s.storedAt
-        : iso(s.expiresInMs - shelf.days * DAY);
+      s.expiresAtIso !== undefined
+        ? new Date(new Date(s.expiresAtIso).getTime() - shelf.days * DAY).toISOString()
+        : s.expiresInMs === undefined
+          ? s.storedAt
+          : iso(s.expiresInMs - shelf.days * DAY);
     const expiresAt =
-      s.expiresInMs === undefined
-        ? addDays(s.storedAt, shelf.days)
-        : iso(s.expiresInMs);
+      s.expiresAtIso !== undefined
+        ? s.expiresAtIso
+        : s.expiresInMs === undefined
+          ? addDays(s.storedAt, shelf.days)
+          : iso(s.expiresInMs);
     // Mass-verification demo state. Records without `verified` predate the
     // workflow: they keep the declared mass and show as Approved (legacy).
     const verification: FoodItem["massVerification"] =
@@ -264,6 +360,40 @@ export const SEED_DONATIONS: Donation[] = [
     createdAt: iso(-2 * DAY),
     note: "Item expired before a requester was assigned.",
   },
+  // Nov-7 simulation: donations the reviewer asked to see from the 7 Nov
+  // vantage point — surplus food still donateable (Fresh apple crates inside
+  // the 2-hour reminder window) and expired food waste (Morning rice boxes,
+  // handed over to the Manager's waste bank).
+  {
+    id: "DN-205",
+    foodIds: ["FD-1095"],
+    label: "Fresh apple crates",
+    massG: 5200,
+    status: "Pending",
+    createdBy: "Nadia Prameswari",
+    createdAt: atZone(SIM_Y, 10, 7, 8),
+    note: "Surplus apples — expires this morning, donate before the window closes.",
+  },
+  {
+    id: "DN-206",
+    foodIds: ["FD-1094"],
+    label: "Vegetable soup pots",
+    massG: 3000,
+    status: "Pending",
+    createdBy: "Nadia Prameswari",
+    createdAt: atZone(SIM_Y, 10, 7, 8, 30),
+    note: "Cooked this morning; offered inside the grace window.",
+  },
+  {
+    id: "DN-207",
+    foodIds: ["FD-1093"],
+    label: "Morning rice boxes",
+    massG: 2700,
+    status: "Pending",
+    createdBy: "Nadia Prameswari",
+    createdAt: atZone(SIM_Y, 10, 7, 6, 30),
+    note: "Expired food waste — managed at the waste bank, delivery by email.",
+  },
 ];
 
 export const SEED_REQUESTS: GcRequest[] = [
@@ -310,6 +440,20 @@ export const SEED_REQUESTS: GcRequest[] = [
     submittedAt: iso(-1.8 * DAY),
     decidedAt: iso(-1.5 * DAY),
     reason: "Donation was cancelled by the donor before allocation.",
+    contactEmail: "green@smartsave.demo",
+    contactAddress: "Jl. Raya Keputih No. 45, Sukolilo, Surabaya, Jawa Timur 60111",
+  },
+  // Nov-7 simulation: a pending request from the Green Community for the
+  // surplus apple crates, so the Manager's review queue has a live example
+  // from the requested vantage point.
+  {
+    id: "RQ-304",
+    donationId: "DN-205",
+    label: "Fresh apple crates",
+    massG: 5200,
+    status: "Pending",
+    submittedBy: "Rumah Pangan Hijau",
+    submittedAt: atZone(SIM_Y, 10, 7, 9),
     contactEmail: "green@smartsave.demo",
     contactAddress: "Jl. Raya Keputih No. 45, Sukolilo, Surabaya, Jawa Timur 60111",
   },
