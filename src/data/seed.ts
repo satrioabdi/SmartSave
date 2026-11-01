@@ -394,6 +394,30 @@ export const SEED_DONATIONS: Donation[] = [
     createdAt: atZone(SIM_Y, 10, 7, 6, 30),
     note: "Expired food waste — managed at the waste bank, delivery by email.",
   },
+  // Nov-8 simulation: one record that has NOT expired yet is donated and
+  // requested by the Green Community (a live Pending pair the reviewer can
+  // walk through Manager approval → handover), while another not-yet-expired
+  // record is donated but left unrequested — open for anyone to claim.
+  {
+    id: "DN-208",
+    foodIds: ["FD-1100"],
+    label: "Rice porridge pots 08",
+    massG: 2800,
+    status: "Pending",
+    createdBy: "Nadia Prameswari",
+    createdAt: atZone(SIM_Y, 10, 7, 8, 30),
+    note: "Surplus before tomorrow's 08:00 expiry — requested by the Green Community.",
+  },
+  {
+    id: "DN-209",
+    foodIds: ["FD-1101"],
+    label: "Soybean soup 09",
+    massG: 2400,
+    status: "Pending",
+    createdBy: "Nadia Prameswari",
+    createdAt: atZone(SIM_Y, 10, 7, 9, 30),
+    note: "Offered before the 09:00 expiry — no request yet, still open.",
+  },
 ];
 
 export const SEED_REQUESTS: GcRequest[] = [
@@ -454,6 +478,21 @@ export const SEED_REQUESTS: GcRequest[] = [
     status: "Pending",
     submittedBy: "Rumah Pangan Hijau",
     submittedAt: atZone(SIM_Y, 10, 7, 9),
+    contactEmail: "green@smartsave.demo",
+    contactAddress: "Jl. Raya Keputih No. 45, Sukolilo, Surabaya, Jawa Timur 60111",
+  },
+  // Nov-8 simulation: the Green Community already requested the not-yet-expired
+  // rice porridge (DN-208) — the Manager can approve and record the handover
+  // from this state. The unrequested soybean soup (DN-209) stays without a
+  // request on purpose (case c).
+  {
+    id: "RQ-305",
+    donationId: "DN-208",
+    label: "Rice porridge pots 08",
+    massG: 2800,
+    status: "Pending",
+    submittedBy: "Rumah Pangan Hijau",
+    submittedAt: atZone(SIM_Y, 10, 7, 10),
     contactEmail: "green@smartsave.demo",
     contactAddress: "Jl. Raya Keputih No. 45, Sukolilo, Surabaya, Jawa Timur 60111",
   },
