@@ -12,11 +12,13 @@ import {
   Panel,
   QuantityHeader,
   SimulationBanner,
+  SortableTh,
   StatusBadge,
   TableEmpty,
   TableWrap,
   Toolbar,
 } from "../components/ui";
+import { applySort, cycleSort, type SortState } from "../components/ui";
 import { IconGift, IconHand } from "../components/icons";
 import { useStore } from "../lib/store";
 import {
@@ -228,10 +230,17 @@ export function FoodDonationPage() {
 export function DonationHistoryPage() {
   const { session, donations, food, cancelDonation, navigate, timezone } = useStore();
   const [status, setStatus] = useState("All");
+  // Sortable Created column (donation datetime).
+  const [sort, setSort] = useState<SortState | null>(null);
 
   if (!session) return null;
   const mine = donations.filter((d) => d.createdBy === session.name);
-  const rows = mine.filter((d) => status === "All" || d.status === status);
+  const rows = applySort(
+    mine.filter((d) => status === "All" || d.status === status),
+    sort,
+    { createdAt: (d) => d.createdAt },
+  );
+  const onSort = (key: string) => setSort((cur) => cycleSort(cur, key));
   const totalMass = mine.reduce((s, d) => s + d.massG, 0);
 
   return (
@@ -299,7 +308,7 @@ export function DonationHistoryPage() {
             <tr>
               <th scope="col">Donation</th>
               <th scope="col">Status</th>
-              <th scope="col">Created</th>
+              <SortableTh label="Created" sortKey="createdAt" sort={sort} onSort={onSort} />
               <QuantityHeader />
               <th scope="col">Allocated to</th>
               <th scope="col" style={{ textAlign: "right" }}>Actions</th>

@@ -187,6 +187,14 @@ export const IconChevron = (p: P) => (
   </svg>
 );
 
+/** Two stacked arrows for column sorting (up = asc on top, down = desc). */
+export const IconSort = (p: P) => (
+  <svg {...base(p)}>
+    <path d="M8 9.5 12 5.5l4 4" />
+    <path d="M8 14.5l4 4 4-4" />
+  </svg>
+);
+
 export const IconArrowLeft = (p: P) => (
   <svg {...base(p)}>
     <path d="M19 12H5" />

@@ -14,12 +14,14 @@ import {
   PeriodFilter,
   QuantityHeader,
   SimulationBanner,
+  SortableTh,
   StatusBadge,
   SummaryList,
   TableEmpty,
   TableWrap,
   Toolbar,
 } from "../components/ui";
+import { applySort, cycleSort, type SortState } from "../components/ui";
 import { IconChart, IconGift, IconHand, IconList } from "../components/icons";
 import { useStore } from "../lib/store";
 import {
@@ -349,10 +351,25 @@ export function GcDonationsPage() {
   const { session, donations, requests, food, submitRequest, navigate, setToast, timezone } =
     useStore();
   const [status, setStatus] = useState("Pending");
+  // Sortable datetime columns: Created (donation) and Expiry status (worst
+  // item's expiration across the donation's records).
+  const [sort, setSort] = useState<SortState | null>(null);
 
   if (!session) return null;
-  const rows = donations.filter((d) => status === "All" || d.status === status);
   const mine = requests.filter((r) => r.submittedBy === session.name);
+  const rows = applySort(
+    donations.filter((d) => status === "All" || d.status === status),
+    sort,
+    {
+      createdAt: (d) => d.createdAt,
+      expiresAt: (d) => {
+        const items = food.filter((f) => d.foodIds.includes(f.id));
+        const times = items.map((f) => new Date(f.expiresAt).getTime());
+        return times.length ? Math.min(...times) : Number.MAX_SAFE_INTEGER;
+      },
+    },
+  );
+  const onSort = (key: string) => setSort((cur) => cycleSort(cur, key));
 
   return (
     <AppShell title="Available Food Waste/Surplus Food">
@@ -383,10 +400,15 @@ export function GcDonationsPage() {
               <th scope="col">Donation</th>
               <th scope="col">Status</th>
               <th scope="col">Offered by</th>
-              <th scope="col">Created</th>
+              <SortableTh label="Created" sortKey="createdAt" sort={sort} onSort={onSort} />
               <QuantityHeader />
               <th scope="col">Estimated CO₂e</th>
-              <th scope="col">Expiry status</th>
+              <SortableTh
+                label="Expiry status"
+                sortKey="expiresAt"
+                sort={sort}
+                onSort={onSort}
+              />
               <th scope="col">Detail</th>
               <th scope="col" style={{ textAlign: "right" }}>Action</th>
             </tr>
@@ -754,10 +776,27 @@ function requestCo2e(
 export function GcRequestsPage() {
   const { session, requests, donations, food, events, navigate, timezone } = useStore();
   const [status, setStatus] = useState("All");
+  // Sortable Submitted (request datetime) and Expiry status columns.
+  const [sort, setSort] = useState<SortState | null>(null);
 
   if (!session) return null;
   const mine = requests.filter((r) => r.submittedBy === session.name);
-  const rows = mine.filter((r) => status === "All" || r.status === status);
+  const rows = applySort(
+    mine.filter((r) => status === "All" || r.status === status),
+    sort,
+    {
+      submittedAt: (r) => r.submittedAt,
+      expiresAt: (r) => {
+        const donation = donations.find((d) => d.id === r.donationId);
+        const items = donation
+          ? food.filter((f) => donation.foodIds.includes(f.id))
+          : [];
+        const times = items.map((f) => new Date(f.expiresAt).getTime());
+        return times.length ? Math.min(...times) : Number.MAX_SAFE_INTEGER;
+      },
+    },
+  );
+  const onSort = (key: string) => setSort((cur) => cycleSort(cur, key));
 
   return (
     <AppShell title="My Requests / Request Status">
@@ -790,13 +829,18 @@ export function GcRequestsPage() {
             <tr>
               <th scope="col">Request</th>
               <th scope="col">Status</th>
-              <th scope="col">Submitted</th>
+              <SortableTh label="Submitted" sortKey="submittedAt" sort={sort} onSort={onSort} />
               <th scope="col">Decided</th>
               <th scope="col">Locker record</th>
               <QuantityHeader />
               <th scope="col">Estimated CO₂e</th>
               <th scope="col">Contact (address · email)</th>
-              <th scope="col">Expiry status</th>
+              <SortableTh
+                label="Expiry status"
+                sortKey="expiresAt"
+                sort={sort}
+                onSort={onSort}
+              />
               <th scope="col">Detail</th>
               <th scope="col">Reason / note</th>
             </tr>
@@ -1072,6 +1116,8 @@ export function GcPickupBarcodePage({ id }: { id?: string }) {
 
 export function GcHistoryPage() {
   const { session, donations, requests, events, timezone } = useStore();
+  // Sortable Distributed column (handover datetime).
+  const [sort, setSort] = useState<SortState | null>(null);
 
   if (!session) return null;
   const completedIds = requests
@@ -1139,13 +1185,20 @@ export function GcHistoryPage() {
               <thead>
                 <tr>
                   <th scope="col">Donation</th>
-                  <th scope="col">Distributed</th>
+                  <SortableTh
+                    label="Distributed"
+                    sortKey="distributedAt"
+                    sort={sort}
+                    onSort={(k) => setSort((cur) => cycleSort(cur, k))}
+                  />
                   <QuantityHeader />
                   <th scope="col">Estimated CO₂e</th>
                 </tr>
               </thead>
               <tbody>
-                {received.map((d) => {
+                {applySort(received, sort, {
+                  distributedAt: (d) => d.completedAt ?? "",
+                }).map((d) => {
                   const evs = histEvents.filter((e) => d.foodIds.includes(e.foodId));
                   const kg = evs.reduce((s, e) => s + (e.co2eKg ?? 0), 0);
                   return (

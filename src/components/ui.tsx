@@ -477,6 +477,108 @@ export function TableWrap({ children }: { children: ReactNode }) {
   );
 }
 
+/* --------------------------- Sortable header ------------------------ */
+
+/**
+ * Sort state for a table: which column key is active and which direction.
+ * `null` key keeps the dataset's natural order (seed/original).
+ */
+export interface SortState {
+  key: string;
+  dir: "asc" | "desc";
+}
+
+/**
+ * Clickable `<th>` for a sortable column. Clicking cycles asc → desc; a
+ * third click clears back to the natural order. The active column shows a
+ * small arrow and `aria-sort` so screen readers announce the order.
+ */
+export function SortableTh({
+  label,
+  sortKey,
+  sort,
+  onSort,
+  align,
+}: {
+  label: ReactNode;
+  sortKey: string;
+  sort: SortState | null;
+  onSort: (key: string) => void;
+  align?: "right";
+}) {
+  const active = sort?.key === sortKey;
+  const dir = active ? sort!.dir : null;
+  return (
+    <th
+      scope="col"
+      aria-sort={active ? (dir === "asc" ? "ascending" : "descending") : "none"}
+      style={align === "right" ? { textAlign: "right" } : undefined}
+    >
+      <button
+        type="button"
+        className={`th-sort${active ? " is-active" : ""}`}
+        onClick={() => onSort(sortKey)}
+        title={`Sort by ${typeof label === "string" ? label.toLowerCase() : "this column"}`}
+      >
+        <span>{label}</span>
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth={2.2}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden
+          className="th-sort-arrow"
+          style={active ? { transform: dir === "desc" ? "rotate(180deg)" : undefined } : undefined}
+        >
+          <path d="M12 19V6" />
+          <path d="m6 12 6-6 6 6" />
+        </svg>
+      </button>
+    </th>
+  );
+}
+
+/** Cycles a table's sort state: new key → asc; same key → asc → desc → none. */
+export function cycleSort(current: SortState | null, key: string): SortState | null {
+  if (!current || current.key !== key) return { key, dir: "asc" };
+  if (current.dir === "asc") return { key, dir: "desc" };
+  return null;
+}
+
+/**
+ * Apply a sort state to rows using an accessor. `null` sort keeps the input
+ * order (React `slice` copies, never mutating the source array).
+ */
+export function applySort<T>(
+  rows: T[],
+  sort: SortState | null,
+  accessors: Record<string, (row: T) => string | number>,
+): T[] {
+  if (!sort) return rows.slice();
+  const get = accessors[sort.key];
+  if (!get) return rows.slice();
+  const out = rows.slice();
+  out.sort((a, b) => {
+    const va = get(a);
+    const vb = get(b);
+    let cmp: number;
+    if (typeof va === "number" && typeof vb === "number") {
+      cmp = va - vb;
+    } else {
+      // ISO datetimes compare lexicographically; strings use localeCompare.
+      const sa = String(va);
+      const sb = String(vb);
+      cmp = sa < sb ? -1 : sa > sb ? 1 : 0;
+    }
+    return sort.dir === "asc" ? cmp : -cmp;
+  });
+  return out;
+}
+
+/** Apply a sort state to rows using an accessor map. See applySort above. */
+
 export function TableEmpty({ colSpan, text }: { colSpan: number; text: string }) {
   return (
     <tr className="table-empty">

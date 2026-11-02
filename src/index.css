@@ -1171,6 +1171,39 @@ textarea {
   color: var(--muted);
   font-size: 12px;
 }
+
+/* Sortable column header: inherits the th look, adds a hover affordance and
+   a small direction arrow that appears on hover / when active. */
+.th-sort {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  cursor: pointer;
+}
+.th-sort:hover {
+  color: var(--navy);
+}
+.th-sort .th-sort-arrow {
+  width: 10px;
+  height: 10px;
+  opacity: 0;
+  transition: opacity 0.12s ease, transform 0.12s ease;
+  flex: none;
+}
+.th-sort:hover .th-sort-arrow,
+.th-sort.is-active .th-sort-arrow {
+  opacity: 1;
+}
+.th-sort.is-active {
+  color: var(--navy);
+}
 .cell-strong {
   font-weight: 600;
   color: var(--navy);

@@ -19,12 +19,14 @@ import {
   QuantityHeader,
   SafetyNotice,
   SimulationBanner,
+  SortableTh,
   StatusBadge,
   SummaryList,
   TableEmpty,
   TableWrap,
   Toolbar,
 } from "../components/ui";
+import { applySort, cycleSort, type SortState } from "../components/ui";
 import {
   IconBox,
   IconChart,
@@ -331,6 +333,9 @@ export function InventoryPage({
   const [q, setQ] = useState("");
   const [status, setStatus] = useState("All");
   const [category, setCategory] = useState("All");
+  // Column sorting on Stored At / Expiration Date & Time (applies to the
+  // User's own view and the Manager's Food & Inventory Management alike).
+  const [sort, setSort] = useState<SortState | null>(null);
   // Manager-only person filter. Seeded from the route when arriving from
   // User and Role Management (the page remounts with a fresh key), then
   // freely changeable with the "All owners" option.
@@ -351,15 +356,23 @@ export function InventoryPage({
   const ownerNames = new Map(food.map((f) => [f.ownerUserId, f.ownerLabel] as const));
   const ownerOptions = ["All", ...Array.from(new Set(food.map((f) => f.ownerUserId)))];
   const categories = ["All", ...Array.from(new Set(base.map((f) => f.category)))];
-  const rows = base.filter(
-    (f) =>
-      (status === "All" || effectiveFoodStatus(f.status, f.expiresAt) === status) &&
-      (category === "All" || f.category === category) &&
-      (q.trim() === "" ||
-        f.name.toLowerCase().includes(q.toLowerCase()) ||
-        f.id.toLowerCase().includes(q.toLowerCase()) ||
-        f.barcode.toLowerCase().includes(q.toLowerCase())),
+  const rows = applySort(
+    base.filter(
+      (f) =>
+        (status === "All" || effectiveFoodStatus(f.status, f.expiresAt) === status) &&
+        (category === "All" || f.category === category) &&
+        (q.trim() === "" ||
+          f.name.toLowerCase().includes(q.toLowerCase()) ||
+          f.id.toLowerCase().includes(q.toLowerCase()) ||
+          f.barcode.toLowerCase().includes(q.toLowerCase())),
+    ),
+    sort,
+    {
+      storedAt: (f) => f.storedAt,
+      expiresAt: (f) => f.expiresAt,
+    },
   );
+  const onSort = (key: string) => setSort((cur) => cycleSort(cur, key));
 
   const exportCsv = () => {
     downloadCsv("smartsave-inventory.csv", [
@@ -477,8 +490,8 @@ export function InventoryPage({
               <th scope="col">Status</th>
               {role === "Manager" && <th scope="col">Owner</th>}
               <th scope="col">Locker</th>
-              <th scope="col">Stored At</th>
-              <th scope="col">Expiration Date &amp; Time</th>
+              <SortableTh label="Stored At" sortKey="storedAt" sort={sort} onSort={onSort} />
+              <SortableTh label="Expiration Date & Time" sortKey="expiresAt" sort={sort} onSort={onSort} />
               <QuantityHeader />
               {role === "Manager" && <th scope="col">Mass check</th>}
               <th scope="col" style={{ textAlign: "right" }}>Actions</th>

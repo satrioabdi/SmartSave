@@ -14,12 +14,14 @@ import {
   PeriodFilter,
   QuantityHeader,
   SimulationBanner,
+  SortableTh,
   StatusBadge,
   SummaryList,
   TableEmpty,
   TableWrap,
   Toolbar,
 } from "../components/ui";
+import { applySort, cycleSort, type SortState } from "../components/ui";
 import {
   IconAlert,
   IconBox,
@@ -283,14 +285,22 @@ export function ManagerUsersPage() {
     useStore();
   const [q, setQ] = useState("");
   const [role, setRole] = useState("All");
+  // Sortable Joined column (account creation datetime) across all roles —
+  // user, manager and green community accounts in one table.
+  const [sort, setSort] = useState<SortState | null>(null);
 
-  const rows = accounts.filter(
-    (a) =>
-      (role === "All" || a.role === role) &&
-      (q.trim() === "" ||
-        a.name.toLowerCase().includes(q.toLowerCase()) ||
-        a.email.toLowerCase().includes(q.toLowerCase())),
+  const rows = applySort(
+    accounts.filter(
+      (a) =>
+        (role === "All" || a.role === role) &&
+        (q.trim() === "" ||
+          a.name.toLowerCase().includes(q.toLowerCase()) ||
+          a.email.toLowerCase().includes(q.toLowerCase())),
+    ),
+    sort,
+    { createdAt: (a) => a.createdAt },
   );
+  const onSort = (key: string) => setSort((cur) => cycleSort(cur, key));
 
   // Per-user mass and qualified CO₂e totals (§8: mass and CO₂e shown together;
   // only qualified events count — registration alone is never an emission).
@@ -345,7 +355,7 @@ export function ManagerUsersPage() {
               <th scope="col">Account</th>
               <th scope="col">Role</th>
               <th scope="col">Organization</th>
-              <th scope="col">Joined</th>
+              <SortableTh label="Joined" sortKey="createdAt" sort={sort} onSort={onSort} />
               <th scope="col">Records</th>
               <QuantityHeader />
               <th scope="col" style={{ textAlign: "right" }}>Action</th>
@@ -943,8 +953,15 @@ export function ManagerBarcodesPage() {
 export function ManagerDonationsPage() {
   const { donations, food, requests, distributeDonation, navigate, timezone } = useStore();
   const [status, setStatus] = useState("All");
+  // Sortable Created column (donation datetime).
+  const [sort, setSort] = useState<SortState | null>(null);
 
-  const rows = donations.filter((d) => status === "All" || d.status === status);
+  const rows = applySort(
+    donations.filter((d) => status === "All" || d.status === status),
+    sort,
+    { createdAt: (d) => d.createdAt },
+  );
+  const onSort = (key: string) => setSort((cur) => cycleSort(cur, key));
 
   return (
     <AppShell title="Donation Management">
@@ -984,7 +1001,7 @@ export function ManagerDonationsPage() {
               <th scope="col">Donation</th>
               <th scope="col">Status</th>
               <th scope="col">Created by</th>
-              <th scope="col">Created</th>
+              <SortableTh label="Created" sortKey="createdAt" sort={sort} onSort={onSort} />
               <QuantityHeader />
               <th scope="col">Requests</th>
               <th scope="col" style={{ textAlign: "right" }}>Action</th>
@@ -1091,8 +1108,15 @@ export function ManagerRequestsPage() {
   const [status, setStatus] = useState("All");
   const [rejectId, setRejectId] = useState<string | null>(null);
   const [reason, setReason] = useState("");
+  // Sortable Submitted column (request datetime).
+  const [sort, setSort] = useState<SortState | null>(null);
 
-  const rows = requests.filter((r) => status === "All" || r.status === status);
+  const rows = applySort(
+    requests.filter((r) => status === "All" || r.status === status),
+    sort,
+    { submittedAt: (r) => r.submittedAt },
+  );
+  const onSort = (key: string) => setSort((cur) => cycleSort(cur, key));
 
   const confirmReject = () => {
     if (!rejectId) return;
@@ -1133,7 +1157,7 @@ export function ManagerRequestsPage() {
               <th scope="col">Request</th>
               <th scope="col">Status</th>
               <th scope="col">Submitted by</th>
-              <th scope="col">Submitted</th>
+              <SortableTh label="Submitted" sortKey="submittedAt" sort={sort} onSort={onSort} />
               <th scope="col">Address · Email</th>
               <QuantityHeader />
               <th scope="col">Impact</th>
@@ -1247,13 +1271,23 @@ export function ManagerRequestsPage() {
 export function ManagerExpiryMonitorPage() {
   const { food, notifications, markNotificationsRead, timezone } = useStore();
   const [tab, setTab] = useState<"expiring" | "expired" | "notifications">("expiring");
+  // Sort the Expiring (Expires) and Expired (Expired at) tables by their
+  // datetime column.
+  const [expiringSort, setExpiringSort] = useState<SortState | null>(null);
+  const [expiredSort, setExpiredSort] = useState<SortState | null>(null);
 
-  const expiring = food.filter((f) => {
-    const h = (new Date(f.expiresAt).getTime() - demoNow().getTime()) / 3600000;
-    return h > 0 && h <= 2 && f.status !== "Collected" && f.status !== "Donated";
-  });
-  const expired = food.filter(
-    (f) => effectiveFoodStatus(f.status, f.expiresAt) === "Expired",
+  const expiringRows = applySort(
+    food.filter((f) => {
+      const h = (new Date(f.expiresAt).getTime() - demoNow().getTime()) / 3600000;
+      return h > 0 && h <= 2 && f.status !== "Collected" && f.status !== "Donated";
+    }),
+    expiringSort,
+    { expiresAt: (f) => f.expiresAt },
+  );
+  const expiredRows = applySort(
+    food.filter((f) => effectiveFoodStatus(f.status, f.expiresAt) === "Expired"),
+    expiredSort,
+    { expiresAt: (f) => f.expiresAt },
   );
   const unread = notifications.filter((n) => !n.read).length;
 
@@ -1288,7 +1322,7 @@ export function ManagerExpiryMonitorPage() {
 
         {tab === "expiring" && (
           <Panel title="Expiring within two hours" description="Remind owners to donate or collect">
-            {expiring.length === 0 ? (
+            {expiringRows.length === 0 ? (
               <EmptyState title="Nothing expiring in the next two hours" />
             ) : (
               <TableWrap>
@@ -1296,13 +1330,18 @@ export function ManagerExpiryMonitorPage() {
                   <tr>
                     <th scope="col">Record</th>
                     <th scope="col">Owner</th>
-                    <th scope="col">Expires</th>
+                    <SortableTh
+                      label="Expires"
+                      sortKey="expiresAt"
+                      sort={expiringSort}
+                      onSort={(k) => setExpiringSort((cur) => cycleSort(cur, k))}
+                    />
                     <th scope="col">Time left</th>
                     <QuantityHeader />
                   </tr>
                 </thead>
                 <tbody>
-                  {expiring.map((f) => (
+                  {expiringRows.map((f) => (
                     <tr key={f.id}>
                       <td>
                         <span className="cell-strong">{f.name}</span>
@@ -1332,7 +1371,7 @@ export function ManagerExpiryMonitorPage() {
             title="Expired records"
             description="Grace window first, then the waste bank — follow up with the owner or record the handover"
           >
-            {expired.length === 0 ? (
+            {expiredRows.length === 0 ? (
               <EmptyState title="No expired records" />
             ) : (
               <div className="stack stack--sm">
@@ -1341,13 +1380,18 @@ export function ManagerExpiryMonitorPage() {
                     <tr>
                       <th scope="col">Record</th>
                       <th scope="col">Owner</th>
-                      <th scope="col">Expired at</th>
+                      <SortableTh
+                        label="Expired at"
+                        sortKey="expiresAt"
+                        sort={expiredSort}
+                        onSort={(k) => setExpiredSort((cur) => cycleSort(cur, k))}
+                      />
                       <QuantityHeader />
                       <th scope="col">Follow-up</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {expired.map((f) => {
+                    {expiredRows.map((f) => {
                       const grace = expiredWithinGrace(f.expiresAt);
                       return (
                         <tr key={f.id}>
@@ -1469,16 +1513,23 @@ export function ActivityLogsPage() {
   const { logs, timezone } = useStore();
   const [q, setQ] = useState("");
   const [actor, setActor] = useState("All");
+  // Sortable When column (log timestamp); newest-first stays the default.
+  const [sort, setSort] = useState<SortState | null>(null);
 
   const actors = Array.from(new Set(logs.map((l) => l.actor)));
-  const rows = logs.filter(
-    (l) =>
-      (actor === "All" || l.actor === actor) &&
-      (q.trim() === "" ||
-        l.action.toLowerCase().includes(q.toLowerCase()) ||
-        l.target.toLowerCase().includes(q.toLowerCase()) ||
-        (l.detail ?? "").toLowerCase().includes(q.toLowerCase())),
+  const rows = applySort(
+    logs.filter(
+      (l) =>
+        (actor === "All" || l.actor === actor) &&
+        (q.trim() === "" ||
+          l.action.toLowerCase().includes(q.toLowerCase()) ||
+          l.target.toLowerCase().includes(q.toLowerCase()) ||
+          (l.detail ?? "").toLowerCase().includes(q.toLowerCase())),
+    ),
+    sort,
+    { at: (l) => l.at },
   );
+  const onSort = (key: string) => setSort((cur) => cycleSort(cur, key));
 
   return (
     <AppShell title="Activity Logs">
@@ -1530,7 +1581,7 @@ export function ActivityLogsPage() {
         <TableWrap>
           <thead>
             <tr>
-              <th scope="col">When</th>
+              <SortableTh label="When" sortKey="at" sort={sort} onSort={onSort} />
               <th scope="col">Actor</th>
               <th scope="col">Action</th>
               <th scope="col">Target</th>
