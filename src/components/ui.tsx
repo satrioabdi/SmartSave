@@ -469,10 +469,19 @@ export function Toolbar({
 
 /* ---------------------------- Table wrap --------------------------- */
 
-export function TableWrap({ children }: { children: ReactNode }) {
+export function TableWrap({
+  children,
+  dense = false,
+}: {
+  children: ReactNode;
+  /** Dense layout: tighter padding + wrappable headers so wide tables fit. */
+  dense?: boolean;
+}) {
   return (
     <div className="table-wrap">
-      <table className="data-table">{children}</table>
+      <table className={`data-table${dense ? " data-table--dense" : ""}`}>
+        {children}
+      </table>
     </div>
   );
 }

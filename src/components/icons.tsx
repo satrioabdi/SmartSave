@@ -195,6 +195,26 @@ export const IconSort = (p: P) => (
   </svg>
 );
 
+/** Expand: four corners pointing outward (fit more columns / compact mode). */
+export const IconExpand = (p: P) => (
+  <svg {...base(p)}>
+    <path d="M4 9V4h5" />
+    <path d="M20 9V4h-5" />
+    <path d="M4 15v5h5" />
+    <path d="M20 15v5h-5" />
+  </svg>
+);
+
+/** Collapse: four corners pointing inward (back to comfortable mode). */
+export const IconCollapse = (p: P) => (
+  <svg {...base(p)}>
+    <path d="M9 4v5H4" />
+    <path d="M15 4v5h5" />
+    <path d="M9 20v-5H4" />
+    <path d="M15 20v-5h5" />
+  </svg>
+);
+
 export const IconArrowLeft = (p: P) => (
   <svg {...base(p)}>
     <path d="M19 12H5" />

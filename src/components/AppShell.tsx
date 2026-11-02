@@ -42,9 +42,12 @@ function NavButton({
 export function AppShell({
   children,
   title,
+  wide = false,
 }: {
   children: ReactNode;
   title: string;
+  /** Remove the 1680px page cap — for data-heavy table pages. */
+  wide?: boolean;
 }) {
   const { session, route, navigate, signOut, notifications, markNotificationsRead, timezone, setTimezone, demoClock, setDemoClock } =
     useStore();
@@ -319,7 +322,7 @@ export function AppShell({
           </div>
         </header>
 
-        <main className="page reveal" key={String(route.name)}>
+        <main className={`page reveal${wide ? " page--wide" : ""}`} key={String(route.name)}>
           {children}
         </main>
       </div>

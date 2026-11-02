@@ -31,7 +31,9 @@ import {
   IconBox,
   IconChart,
   IconClock,
+  IconCollapse,
   IconDownload,
+  IconExpand,
   IconGift,
   IconHand,
   IconPrint,
@@ -336,6 +338,24 @@ export function InventoryPage({
   // Column sorting on Stored At / Expiration Date & Time (applies to the
   // User's own view and the Manager's Food & Inventory Management alike).
   const [sort, setSort] = useState<SortState | null>(null);
+  // Dense table toggle — fits the 10–12 column table without horizontal
+  // scrolling on laptop screens; remembered for the session.
+  const [dense, setDense] = useState(() => {
+    try {
+      return window.localStorage.getItem("smartsave.inventoryDense") === "1";
+    } catch {
+      return false;
+    }
+  });
+  const toggleDense = () =>
+    setDense((v) => {
+      try {
+        window.localStorage.setItem("smartsave.inventoryDense", v ? "0" : "1");
+      } catch {
+        /* ignore */
+      }
+      return !v;
+    });
   // Manager-only person filter. Seeded from the route when arriving from
   // User and Role Management (the page remounts with a fresh key), then
   // freely changeable with the "All owners" option.
@@ -416,7 +436,10 @@ export function InventoryPage({
   };
 
   return (
-    <AppShell title={role === "Manager" ? "Food & Inventory Management" : "My Food Inventory"}>
+    <AppShell
+      title={role === "Manager" ? "Food & Inventory Management" : "My Food Inventory"}
+      wide
+    >
       <PageHead
         eyebrow={`Role: ${role}`}
         title={role === "Manager" ? "Food & Inventory Management" : "My Food Inventory"}
@@ -427,6 +450,19 @@ export function InventoryPage({
         }
         actions={
           <>
+            <button
+              type="button"
+              className="button button--secondary"
+              title={
+                dense
+                  ? "Back to comfortable table spacing"
+                  : "Compact spacing so more columns fit on screen"
+              }
+              onClick={toggleDense}
+            >
+              {dense ? <IconCollapse /> : <IconExpand />}
+              {dense ? "Comfortable" : "Compact"}
+            </button>
             <button type="button" className="button button--secondary" onClick={exportCsv}>
               <IconDownload />
               Export CSV
@@ -481,7 +517,7 @@ export function InventoryPage({
           </span>
         </Toolbar>
 
-        <TableWrap>
+        <TableWrap dense={dense}>
           <thead>
             <tr>
               <th scope="col">Photo</th>
@@ -591,9 +627,9 @@ export function InventoryPage({
                     {verification.status === "Pending" ? (
                       <Badge variant="warning">Pending review</Badge>
                     ) : verification.status === "Approved" ? (
-                      <Badge variant="success">Approved by management</Badge>
+                      <Badge variant="success">Approved</Badge>
                     ) : (
-                      <Badge variant="info">Edited by management</Badge>
+                      <Badge variant="info">Edited</Badge>
                     )}
                   </td>
                 )}

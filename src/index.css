@@ -412,9 +412,14 @@ textarea {
 }
 
 .page {
-  max-width: 1440px;
+  max-width: 1680px;
   margin: 0 auto;
   padding: 32px;
+}
+/* Data-heavy pages (inventory etc.) use the full main-column width — the
+   sidebar already costs 224px, so capping the page made wide tables scroll. */
+.page--wide {
+  max-width: none;
 }
 .page--narrow {
   max-width: 800px;
@@ -1170,6 +1175,56 @@ textarea {
   text-align: center;
   color: var(--muted);
   font-size: 12px;
+}
+
+/* Dense table variant: smaller cell padding + tighter sub-labels so a wide
+   table (inventory: 10–12 columns) fits without a horizontal scrollbar on
+   common laptop widths. Toggle per table with TableWrap dense={...}. */
+.data-table--dense thead th,
+.data-table--dense tbody td {
+  padding: 10px 9px;
+}
+.data-table--dense thead th {
+  font-size: 8.5px;
+}
+.data-table--dense .cell-sub {
+  font-size: 9px;
+  margin-top: 1px;
+  white-space: normal;
+}
+/* In dense mode the long header labels wrap instead of forcing width. */
+.data-table--dense thead th {
+  white-space: normal;
+  min-width: 0;
+}
+/* Datetime cells keep tabular numbers but may break "date, time" onto two
+   lines in dense mode — the ISO seed sorts, the display just wraps. */
+.data-table--dense .num-col {
+  white-space: normal;
+  min-width: 88px;
+}
+/* Photo thumb shrinks in dense mode. */
+.data-table--dense .photo-thumb {
+  width: 30px !important;
+  height: 30px !important;
+}
+/* Action buttons tighten. */
+.data-table--dense .table-actions {
+  gap: 4px;
+  flex-wrap: wrap;
+  justify-content: flex-start;
+}
+.data-table--dense .table-actions .button {
+  min-height: 0;
+  padding: 4px 7px;
+  font-size: 9.5px;
+  gap: 4px;
+}
+/* Status badges tighten. */
+.data-table--dense .badge {
+  padding: 2px 5px;
+  font-size: 9px;
+  letter-spacing: 0;
 }
 
 /* Sortable column header: inherits the th look, adds a hover affordance and
