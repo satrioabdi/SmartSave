@@ -569,6 +569,28 @@ textarea {
   min-height: 100%;
 }
 
+/* Collapsed sidebar: the fixed panel slides off-canvas and the main column
+   reclaims its width. The toggle stays in the topbar to bring it back. */
+.shell.sidebar-hidden .sidebar {
+  transform: translateX(-100%);
+  pointer-events: none;
+  visibility: hidden;
+  transition: transform 0.22s ease, visibility 0.22s;
+}
+.shell.sidebar-hidden .main {
+  margin-left: 0;
+}
+/* The desktop hide-toggle is meaningless on mobile (drawer mode already
+   hides the sidebar) — hide it there. */
+.sidebar-toggle {
+  display: none;
+}
+@media (min-width: 761px) {
+  .sidebar-toggle {
+    display: grid;
+  }
+}
+
 .topbar {
   position: sticky;
   top: 0;
@@ -1140,6 +1162,24 @@ textarea {
 .table-wrap {
   overflow-x: auto;
 }
+
+/* Scrollable table body: the wrap gets a height cap (inline style), the
+   body scrolls inside the box, and the header row stays pinned. */
+.table-wrap--scroll {
+  overflow: auto;
+  /* Reserve the vertical scrollbar's width always, so enabling it doesn't
+     re-wrap columns / push the table 11px into horizontal overflow. */
+  scrollbar-gutter: stable;
+}
+.table-wrap--scroll .data-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  /* Hide rows scrolling behind the header — the th background alone is
+     translucent over borders, so paint it solid plus a bottom edge. */
+  background: var(--canvas);
+  box-shadow: 0 1px 0 var(--line);
+}
 .data-table {
   width: 100%;
   min-width: 780px;
@@ -1182,7 +1222,7 @@ textarea {
    common laptop widths. Toggle per table with TableWrap dense={...}. */
 .data-table--dense thead th,
 .data-table--dense tbody td {
-  padding: 10px 9px;
+  padding: 9px 7px;
 }
 .data-table--dense thead th {
   font-size: 8.5px;
@@ -1248,7 +1288,9 @@ textarea {
 .th-sort .th-sort-arrow {
   width: 10px;
   height: 10px;
-  opacity: 0;
+  /* Always faintly visible so users discover the column is sortable;
+     full opacity on hover and when active. */
+  opacity: 0.35;
   transition: opacity 0.12s ease, transform 0.12s ease;
   flex: none;
 }

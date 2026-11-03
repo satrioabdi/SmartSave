@@ -517,7 +517,7 @@ export function InventoryPage({
           </span>
         </Toolbar>
 
-        <TableWrap dense={dense}>
+        <TableWrap dense={dense} scrollBody maxHeight={640}>
           <thead>
             <tr>
               <th scope="col">Photo</th>

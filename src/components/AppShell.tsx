@@ -11,6 +11,7 @@ import { avatarClass, initials, relativeTime, roleClass } from "../lib/format";
 import {
   IconBell,
   IconMenu,
+  IconPanelLeft,
   IconShield,
   IconX,
 } from "./icons";
@@ -52,6 +53,24 @@ export function AppShell({
   const { session, route, navigate, signOut, notifications, markNotificationsRead, timezone, setTimezone, demoClock, setDemoClock } =
     useStore();
   const [drawer, setDrawer] = useState(false);
+  // Collapsible sidebar — remembered for the session. Hidden state shifts the
+  // main column left so wide tables gain the sidebar's width.
+  const [sidebarHidden, setSidebarHidden] = useState(() => {
+    try {
+      return window.localStorage.getItem("smartsave.sidebarHidden") === "1";
+    } catch {
+      return false;
+    }
+  });
+  const toggleSidebar = () =>
+    setSidebarHidden((v) => {
+      try {
+        window.localStorage.setItem("smartsave.sidebarHidden", v ? "0" : "1");
+      } catch {
+        /* ignore */
+      }
+      return !v;
+    });
   const [bellOpen, setBellOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [tzOpen, setTzOpen] = useState(false);
@@ -86,12 +105,15 @@ export function AppShell({
     (r.name !== "food-detail" || route.name === "food-detail");
 
   return (
-    <div className="shell">
+    <div className={`shell${sidebarHidden ? " sidebar-hidden" : ""}`}>
       {drawer && (
         <div className="backdrop" onClick={() => setDrawer(false)} />
       )}
 
-      <aside className={`sidebar${drawer ? " is-open" : ""}`}>
+      <aside
+        className={`sidebar${drawer ? " is-open" : ""}`}
+        aria-hidden={sidebarHidden && !drawer ? true : undefined}
+      >
         <div className="row row--between">
           <span className="brand" onClick={() => navigate({ name: session.role === "Manager" ? "manager-dashboard" : session.role === "Green Community" ? "gc-dashboard" : "user-dashboard" })} style={{ cursor: "pointer" }}>
             <span className="brand-mark">S</span>
@@ -148,6 +170,17 @@ export function AppShell({
               style={{ marginRight: 4 }}
             >
               <IconMenu />
+            </button>
+            <button
+              type="button"
+              className="icon-button sidebar-toggle"
+              aria-label={sidebarHidden ? "Show sidebar" : "Hide sidebar"}
+              aria-pressed={sidebarHidden}
+              title={sidebarHidden ? "Show sidebar" : "Hide sidebar"}
+              onClick={toggleSidebar}
+              style={{ marginRight: 4 }}
+            >
+              <IconPanelLeft />
             </button>
             <span>SmartSave</span>
             <span aria-hidden>/</span>

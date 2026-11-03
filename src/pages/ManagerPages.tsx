@@ -349,7 +349,7 @@ export function ManagerUsersPage() {
           <span className="tiny">{rows.length} of {accounts.length} accounts</span>
         </Toolbar>
 
-        <TableWrap>
+        <TableWrap scrollBody maxHeight={560}>
           <thead>
             <tr>
               <th scope="col">Account</th>
@@ -588,7 +588,7 @@ export function ManagerShelfLifePage() {
           not validated against any lab or regulation.
         </SimulationBanner>
 
-        <TableWrap>
+        <TableWrap scrollBody maxHeight={560}>
           <thead>
             <tr>
               <th scope="col">Category</th>
@@ -772,7 +772,7 @@ export function ManagerFactorsPage() {
           <span className="tiny">{rows.length} of {FACTORS.length} rows</span>
         </Toolbar>
 
-        <TableWrap>
+        <TableWrap scrollBody maxHeight={560}>
           <thead>
             <tr>
               <th scope="col">App mapping</th>
@@ -898,7 +898,7 @@ export function ManagerBarcodesPage() {
           </button>
         </Toolbar>
 
-        <TableWrap>
+        <TableWrap scrollBody maxHeight={560}>
           <thead>
             <tr>
               <th scope="col">Barcode</th>
@@ -995,7 +995,7 @@ export function ManagerDonationsPage() {
           </button>
         </Toolbar>
 
-        <TableWrap>
+        <TableWrap scrollBody maxHeight={560}>
           <thead>
             <tr>
               <th scope="col">Donation</th>
@@ -1151,7 +1151,7 @@ export function ManagerRequestsPage() {
           </button>
         </Toolbar>
 
-        <TableWrap>
+        <TableWrap scrollBody maxHeight={560}>
           <thead>
             <tr>
               <th scope="col">Request</th>
@@ -1446,7 +1446,7 @@ export function ManagerExpiryMonitorPage() {
               ) : undefined
             }
           >
-            <TableWrap>
+            <TableWrap scrollBody maxHeight={560}>
               <thead>
                 <tr>
                   <th scope="col">Notification</th>
@@ -1578,7 +1578,7 @@ export function ActivityLogsPage() {
           <span className="tiny">{rows.length} of {logs.length} entries</span>
         </Toolbar>
 
-        <TableWrap>
+        <TableWrap scrollBody maxHeight={560}>
           <thead>
             <tr>
               <SortableTh label="When" sortKey="at" sort={sort} onSort={onSort} />

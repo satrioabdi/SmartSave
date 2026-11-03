@@ -394,7 +394,7 @@ export function GcDonationsPage() {
           <span className="tiny">{rows.length} of {donations.length} donations</span>
         </Toolbar>
 
-        <TableWrap>
+        <TableWrap scrollBody maxHeight={560}>
           <thead>
             <tr>
               <th scope="col">Donation</th>
@@ -824,7 +824,7 @@ export function GcRequestsPage() {
           </button>
         </Toolbar>
 
-        <TableWrap>
+        <TableWrap scrollBody maxHeight={560}>
           <thead>
             <tr>
               <th scope="col">Request</th>
@@ -1181,7 +1181,7 @@ export function GcHistoryPage() {
               hint="Request an open donation — after Manager approval and handover it appears here."
             />
           ) : (
-            <TableWrap>
+            <TableWrap scrollBody maxHeight={560}>
               <thead>
                 <tr>
                   <th scope="col">Donation</th>

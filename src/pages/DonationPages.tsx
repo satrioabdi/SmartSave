@@ -303,7 +303,7 @@ export function DonationHistoryPage() {
           </button>
         </Toolbar>
 
-        <TableWrap>
+        <TableWrap scrollBody maxHeight={560}>
           <thead>
             <tr>
               <th scope="col">Donation</th>
@@ -439,7 +439,7 @@ export function RetrievalPage() {
           explicitly.
         </Notice>
 
-        <TableWrap>
+        <TableWrap scrollBody maxHeight={560}>
           <thead>
             <tr>
               <th scope="col">Food</th>

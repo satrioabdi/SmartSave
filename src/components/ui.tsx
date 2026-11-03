@@ -472,13 +472,22 @@ export function Toolbar({
 export function TableWrap({
   children,
   dense = false,
+  scrollBody = false,
+  maxHeight = 520,
 }: {
   children: ReactNode;
   /** Dense layout: tighter padding + wrappable headers so wide tables fit. */
   dense?: boolean;
+  /** Cap the height and scroll the body while the header row stays fixed. */
+  scrollBody?: boolean;
+  /** Body scroll cap in px when scrollBody is on. */
+  maxHeight?: number;
 }) {
   return (
-    <div className="table-wrap">
+    <div
+      className={`table-wrap${scrollBody ? " table-wrap--scroll" : ""}`}
+      style={scrollBody ? { maxHeight } : undefined}
+    >
       <table className={`data-table${dense ? " data-table--dense" : ""}`}>
         {children}
       </table>
