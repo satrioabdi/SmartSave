@@ -1325,7 +1325,7 @@ export function ManagerExpiryMonitorPage() {
             {expiringRows.length === 0 ? (
               <EmptyState title="Nothing expiring in the next two hours" />
             ) : (
-              <TableWrap>
+              <TableWrap scrollBody maxHeight={480}>
                 <thead>
                   <tr>
                     <th scope="col">Record</th>
@@ -1375,7 +1375,7 @@ export function ManagerExpiryMonitorPage() {
               <EmptyState title="No expired records" />
             ) : (
               <div className="stack stack--sm">
-                <TableWrap>
+                <TableWrap scrollBody maxHeight={480}>
                   <thead>
                     <tr>
                       <th scope="col">Record</th>

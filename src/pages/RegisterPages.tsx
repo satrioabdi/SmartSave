@@ -252,7 +252,7 @@ export function ExpiryNotificationsPage() {
             />
           ) : (
             <div className="stack stack--sm">
-              <TableWrap>
+              <TableWrap scrollBody maxHeight={480}>
                 <thead>
                   <tr>
                     <th scope="col">Record</th>
@@ -300,7 +300,7 @@ export function ExpiryNotificationsPage() {
         </Panel>
 
         <Panel title="Notification history" description="Delivery status for every website notification">
-          <TableWrap>
+          <TableWrap scrollBody maxHeight={480}>
             <thead>
               <tr>
                 <th scope="col">Notification</th>

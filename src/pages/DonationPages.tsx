@@ -534,7 +534,7 @@ export function RetrievalPage() {
           {collectedEvents.length === 0 ? (
             <EmptyState title="No collections recorded yet" />
           ) : (
-            <TableWrap>
+            <TableWrap scrollBody maxHeight={480}>
               <thead>
                 <tr>
                   <th scope="col">Food</th>
