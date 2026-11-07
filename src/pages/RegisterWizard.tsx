@@ -178,7 +178,7 @@ function CompartmentCard({
 /* ------------------------------ The wizard ------------------------------ */
 
 export function RegisterFoodPage() {
-  const { food, compartments, registerFood, navigate } = useStore();
+  const { food, compartments, registerFood, navigate, shelfRules } = useStore();
 
   const [step, setStep] = useState(1);
   const [compartmentId, setCompartmentId] = useState<string | null>(null);
@@ -204,8 +204,10 @@ export function RegisterFoodPage() {
   const subtypes = cat?.dependentSubtypes?.[subcategory] ?? [];
   const shelf = useMemo(
     () =>
-      category ? resolveShelfLife(category, subcategory, subtype || undefined) : null,
-    [category, subcategory, subtype],
+      category
+        ? resolveShelfLife(category, subcategory, subtype || undefined, shelfRules)
+        : null,
+    [category, subcategory, subtype, shelfRules],
   );
   const factorRes = useMemo(
     () =>

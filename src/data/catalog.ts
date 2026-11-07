@@ -426,27 +426,101 @@ export interface ShelfLifeResolution {
   note?: string;
 }
 
+/** Manager-edited rule for one category (§9 configuration, editable demo). */
+export interface ShelfRuleOverride {
+  /** Category id, e.g. "fruit". */
+  id: string;
+  /** Edited rule in days. */
+  days: number;
+  /** Optional edited note, e.g. "5 days after opened". */
+  note?: string;
+}
+
+/** "smartsave.shelfRules" localStorage key (per-browser, prototype demo). */
+export const SHELF_RULES_KEY = "smartsave.shelfRules";
+
+/** Read the Manager's saved rules from localStorage; null when absent/corrupt. */
+export function loadShelfRules(): Record<string, ShelfRuleOverride> | null {
+  try {
+    const raw = window.localStorage.getItem(SHELF_RULES_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Record<string, ShelfRuleOverride>;
+    if (!parsed || typeof parsed !== "object") return null;
+    // Keep only entries that still match a known category and are in range.
+    const out: Record<string, ShelfRuleOverride> = {};
+    for (const c of CATEGORIES) {
+      const v = parsed[c.id];
+      if (
+        v &&
+        Number.isFinite(v.days) &&
+        v.days >= 1 &&
+        v.days <= 3650
+      ) {
+        out[c.id] = { id: c.id, days: v.days, note: v.note ?? undefined };
+      }
+    }
+    return out;
+  } catch {
+    return null;
+  }
+}
+
+/** Persist the Manager's rules; silently ignored when storage is unavailable. */
+export function saveShelfRules(rules: Record<string, ShelfRuleOverride>): void {
+  try {
+    window.localStorage.setItem(SHELF_RULES_KEY, JSON.stringify(rules));
+  } catch {
+    // Private window / cleared storage — the in-memory rule still applies.
+  }
+}
+
+export function removeShelfRules(): void {
+  try {
+    window.localStorage.removeItem(SHELF_RULES_KEY);
+  } catch {
+    // ignore
+  }
+}
+
+/**
+ * Resolve the demo shelf-life rule for a category/subcategory/subtype,
+ * optionally layered over Manager-edited rules (`rules`). When an edited
+ * rule exists for the category, both its default and its per-item overrides
+ * shift by the edited days value (override keeps its delta from the old
+ * default, so the table stays internally consistent).
+ */
 export function resolveShelfLife(
   categoryName: string,
   subcategory?: string,
   subtype?: string,
+  rules?: Record<string, ShelfRuleOverride> | null,
 ): ShelfLifeResolution {
   const category = CATEGORIES.find((c) => c.name === categoryName);
   if (!category) {
     return { days: 5, ruleLabel: "5 days (fallback demo rule)" };
   }
+  const edited = rules?.[category.id];
   const matchKey = subtype || subcategory;
   const override = category.shelfLifeOverrides?.find((o) => o.match === matchKey);
   if (override) {
+    // Edited rule keeps each override's original delta from the default.
+    const days = edited
+      ? Math.max(1, override.days + (edited.days - category.shelfLifeDays))
+      : override.days;
     return {
-      days: override.days,
-      ruleLabel: `${override.days} days`,
+      days,
+      ruleLabel: `${days} days`,
       note: override.note,
     };
   }
+  const days = edited ? edited.days : category.shelfLifeDays;
   return {
-    days: category.shelfLifeDays,
-    ruleLabel: category.shelfLifeNote ?? `${category.shelfLifeDays} days`,
+    days,
+    // An edited rule replaces the label with the real number; the plain
+    // default keeps its descriptive §3 note (e.g. "3 days after opened").
+    ruleLabel: edited
+      ? `${days} days`
+      : category.shelfLifeNote ?? `${days} days`,
   };
 }
 

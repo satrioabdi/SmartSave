@@ -58,7 +58,7 @@ import {
   requestStatusVariant,
   roleVariant,
 } from "../lib/format";
-import { CATEGORIES, FACTORS, METHODOLOGY, SHELF_LIFE_DISCLAIMER } from "../data/catalog";
+import { CATEGORIES, FACTORS, METHODOLOGY, SHELF_LIFE_DISCLAIMER, resolveShelfLife } from "../data/catalog";
 import {
   compartmentLabel,
   compartmentOccupancy,
@@ -557,9 +557,15 @@ export function ManagerCategoriesPage() {
 /* --------------------- Shelf-Life Rule Configuration ------------------ */
 
 export function ManagerShelfLifePage() {
-  const { updateShelfLife, setToast } = useStore();
-  const [drafts, setDrafts] = useState<Record<string, string>>(
-    Object.fromEntries(CATEGORIES.map((c) => [c.id, String(c.shelfLifeDays)])),
+  const { updateShelfLife, resetShelfLife, shelfRules, setToast, food, demoClock } =
+    useStore();
+  const [drafts, setDrafts] = useState<Record<string, string>>(() =>
+    Object.fromEntries(
+      CATEGORIES.map((c) => [
+        c.id,
+        String(shelfRules[c.id]?.days ?? c.shelfLifeDays),
+      ]),
+    ),
   );
   const [saved, setSaved] = useState<string | null>(null);
 
@@ -569,10 +575,21 @@ export function ManagerShelfLifePage() {
       setToast("Enter a whole number of days between 1 and 3650.");
       return;
     }
-    updateShelfLife(name, Math.round(n));
+    // Keep a descriptive note (e.g. "3 days after opened") across edits;
+    // plain "N days" notes are regenerated from the number anyway.
+    const cat = CATEGORIES.find((c) => c.id === id);
+    const priorNote = shelfRules[id]?.note ?? cat?.shelfLifeNote;
+    const keepNote =
+      priorNote && !/^\d+ days$/.test(priorNote.trim()) ? priorNote : undefined;
+    updateShelfLife(id, Math.round(n), keepNote);
     setSaved(id);
     window.setTimeout(() => setSaved((s) => (s === id ? null : s)), 2500);
   };
+
+  /** Effective days shown for a category (edited value or the §3 default). */
+  const effectiveDays = (id: string, fallback: number) =>
+    shelfRules[id]?.days ?? fallback;
+  const editedCount = Object.keys(shelfRules).length;
 
   return (
     <AppShell title="Shelf-Life Rule Configuration">
@@ -580,12 +597,29 @@ export function ManagerShelfLifePage() {
         eyebrow="Role: Manager"
         title="Shelf-Life Rule Configuration"
         description="Demo shelf-life rules in days. Changing a rule affects records created afterwards — historical records keep their snapshot."
+        actions={
+          editedCount > 0 ? (
+            <button
+              type="button"
+              className="button button--secondary"
+              onClick={() => {
+                resetShelfLife();
+                setDrafts(
+                  Object.fromEntries(CATEGORIES.map((c) => [c.id, String(c.shelfLifeDays)])),
+                );
+              }}
+            >
+              Reset all to defaults ({editedCount} edited)
+            </button>
+          ) : undefined
+        }
       />
 
       <div className="stack">
         <SimulationBanner>
-          {SHELF_LIFE_DISCLAIMER} These values are not food-safety guidance and are
-          not validated against any lab or regulation.
+          {SHELF_LIFE_DISCLAIMER} Edits are saved in this browser (prototype
+          persistence) and survive a reload. These values are not food-safety
+          guidance and are not validated against any lab or regulation.
         </SimulationBanner>
 
         <TableWrap scrollBody maxHeight={560}>
@@ -598,51 +632,123 @@ export function ManagerShelfLifePage() {
             </tr>
           </thead>
           <tbody>
-            {CATEGORIES.map((c) => (
-              <tr key={c.id}>
-                <td>
-                  <span className="cell-strong">{c.name}</span>
-                  <span className="cell-sub">{c.shelfLifeNote ?? `${c.shelfLifeDays} days`}</span>
-                </td>
-                <td>
-                  <input
-                    type="number"
-                    min={1}
-                    max={3650}
-                    value={drafts[c.id]}
-                    onChange={(e) =>
-                      setDrafts((d) => ({ ...d, [c.id]: e.target.value }))
-                    }
-                    style={{ width: 110 }}
-                    aria-label={`Shelf life for ${c.name}`}
-                  />
-                </td>
-                <td className="tiny">
-                  {c.shelfLifeOverrides && c.shelfLifeOverrides.length > 0
-                    ? c.shelfLifeOverrides
-                        .map((o) => `${o.match} = ${o.days} d`)
-                        .join(" · ")
-                    : "None — category default applies"}
-                </td>
-                <td>
-                  <div className="table-actions">
-                    {saved === c.id ? (
-                      <Badge variant="success">Saved (demo)</Badge>
-                    ) : (
-                      <button
-                        type="button"
-                        className="button button--secondary button--sm"
-                        onClick={() => save(c.id, c.name)}
-                      >
-                        Save rule
-                      </button>
+            {CATEGORIES.map((c) => {
+              const edited = shelfRules[c.id];
+              return (
+                <tr key={c.id}>
+                  <td>
+                    <span className="cell-strong">{c.name}</span>
+                    <span className="cell-sub">
+                      {edited
+                        ? `Default ${c.shelfLifeDays} days → now ${edited.days} days (edited)`
+                        : c.shelfLifeNote ?? `${c.shelfLifeDays} days`}
+                    </span>
+                  </td>
+                  <td>
+                    <input
+                      type="number"
+                      min={1}
+                      max={3650}
+                      value={drafts[c.id]}
+                      onChange={(e) =>
+                        setDrafts((d) => ({ ...d, [c.id]: e.target.value }))
+                      }
+                      style={{ width: 110 }}
+                      aria-label={`Shelf life for ${c.name}`}
+                    />
+                    {edited && edited.days !== c.shelfLifeDays && (
+                      <span className="cell-sub" style={{ color: "var(--amber)" }}>
+                        Default: {c.shelfLifeDays}
+                      </span>
                     )}
-                  </div>
-                </td>
-              </tr>
-            ))}
+                  </td>
+                  <td className="tiny">
+                    {c.shelfLifeOverrides && c.shelfLifeOverrides.length > 0
+                      ? c.shelfLifeOverrides
+                          .map((o) => {
+                            // Edited category rules shift per-item overrides by
+                            // the same delta so the table stays consistent.
+                            const days = edited
+                              ? Math.max(
+                                  1,
+                                  o.days + (edited.days - c.shelfLifeDays),
+                                )
+                              : o.days;
+                            return `${o.match} = ${days} d`;
+                          })
+                          .join(" · ")
+                      : "None — category default applies"}
+                  </td>
+                  <td>
+                    <div className="table-actions">
+                      {saved === c.id ? (
+                        <Badge variant="success">Saved</Badge>
+                      ) : (
+                        <button
+                          type="button"
+                          className="button button--secondary button--sm"
+                          onClick={() => save(c.id, c.name)}
+                        >
+                          Save rule
+                        </button>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </TableWrap>
+
+        <Panel title="Effective rules preview">
+          <p className="small">
+            What Register Food would apply right now
+            {demoClock ? " (under the frozen demo clock)" : ""} — including
+            your edits and per-subcategory overrides.
+          </p>
+          <TableWrap scrollBody maxHeight={360}>
+            <thead>
+              <tr>
+                <th scope="col">Category</th>
+                <th scope="col">Example subcategory/subtype</th>
+                <th scope="col">Effective rule</th>
+                <th scope="col">Records currently using it</th>
+              </tr>
+            </thead>
+            <tbody>
+              {CATEGORIES.flatMap((c) => {
+                const examples: { key: string; label: string }[] =
+                  c.dependentSubtypes
+                    ? Object.entries(c.dependentSubtypes).flatMap(([sub, list]) =>
+                        list.slice(0, 2).map((s) => ({ key: s, label: `${sub} → ${s}` })),
+                      )
+                    : c.subcategories.map((s) => ({ key: s, label: s }));
+                const seen = new Set<string>();
+                return examples
+                  .filter((e) => (seen.has(e.key) ? false : (seen.add(e.key), true)))
+                  .map((e) => {
+                    const shelf = resolveShelfLife(c.name, e.key, undefined, shelfRules);
+                    const count = food.filter(
+                      (f) =>
+                        f.category === c.name &&
+                        (f.subtype === e.key || (!f.subtype && f.subcategory === e.key)),
+                    ).length;
+                    return (
+                      <tr key={`${c.id}:${e.key}`}>
+                        <td>{c.name}</td>
+                        <td>{e.label}</td>
+                        <td className="num-col">
+                          {shelf.days} days
+                          <span className="cell-sub">{shelf.note ?? shelf.ruleLabel}</span>
+                        </td>
+                        <td className="num-col">{count}</td>
+                      </tr>
+                    );
+                  });
+              })}
+            </tbody>
+          </TableWrap>
+        </Panel>
 
         <Panel title="Why expiry is never edited by hand">
           <div className="stack stack--sm">

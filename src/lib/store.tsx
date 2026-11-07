@@ -21,7 +21,7 @@ import {
   SEED_REQUESTS,
   ACCOUNTS,
 } from "../data/seed";
-import { resolveFactor, resolveShelfLife } from "../data/catalog";
+import { resolveFactor, resolveShelfLife, loadShelfRules, saveShelfRules, removeShelfRules, type ShelfRuleOverride } from "../data/catalog";
 import {
   SEED_COMPARTMENTS,
   compartmentBlockReason,
@@ -49,6 +49,7 @@ import type {
   Session,
   VirtualCompartment,
 } from "./types";
+import { CATEGORIES } from "../data/catalog";
 
 export type Route =
   | { name: "landing" }
@@ -241,6 +242,8 @@ interface AppState {
   timezone: string;
   /** Demo simulation clock ISO string, or null for the real clock. */
   demoClock: string | null;
+  /** Manager-edited shelf-life rules per category id (empty = all defaults). */
+  shelfRules: Record<string, ShelfRuleOverride>;
 }
 
 interface AppActions {
@@ -304,7 +307,14 @@ interface AppActions {
    */
   cancelMassReview: (foodId: string) => void;
   markNotificationsRead: () => void;
-  updateShelfLife: (categoryId: string, days: number) => void;
+  /**
+   * Manager edits a category's demo shelf-life rule (§9). Persists to
+   * localStorage so the change survives reloads; affects records registered
+   * afterwards — historical records keep their rule snapshot.
+   */
+  updateShelfLife: (categoryId: string, days: number, note?: string) => void;
+  /** Remove every edited rule — back to the requirement §3 defaults. */
+  resetShelfLife: () => void;
   setToast: (msg: string | null) => void;
   /** Switch the demo country/timezone all datetimes render in. */
   setTimezone: (zone: string) => void;
@@ -331,6 +341,7 @@ const noopActions: AppActions = {
   cancelMassReview: () => {},
   markNotificationsRead: () => {},
   updateShelfLife: () => {},
+  resetShelfLife: () => {},
   setToast: () => {},
   setTimezone: () => {},
   setDemoClock: () => {},
@@ -350,6 +361,7 @@ const StoreContext = createContext<AppState & AppActions>({
   toast: null,
   timezone: DEFAULT_TIMEZONE,
   demoClock: null,
+  shelfRules: {},
   ...noopActions,
 });
 
@@ -376,6 +388,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   // Demo simulation clock — null follows the real time; an ISO string freezes
   // every "now" comparison so the dataset can be reviewed as if on a given day.
   const [demoClock, setDemoClockState] = useState<string | null>(null);
+  // Manager-edited shelf-life rules (§9): persisted to localStorage so an
+  // edit survives reloads, seeded from storage on boot.
+  const [shelfRules, setShelfRules] = useState<
+    Record<string, ShelfRuleOverride>
+  >(() => loadShelfRules() ?? {});
 
   const setTimezone = useCallback((zone: string) => {
     setTimezoneState(zone);
@@ -475,7 +492,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         showToast(`${comp.hub} / ${comp.id} cannot accept this deposit — ${reason.toLowerCase()}.`);
         return null;
       }
-      const shelf = resolveShelfLife(input.category, input.subcategory, input.subtype);
+      const shelf = resolveShelfLife(
+        input.category,
+        input.subcategory,
+        input.subtype,
+        shelfRules,
+      );
       const factor = resolveFactor(input.category, input.subcategory, input.subtype);
       const storedAt = new Date().toISOString();
       const id = nextId("FD");
@@ -526,7 +548,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       showToast(`Food registered — ${id} is now Stored in ${comp.hub} / ${comp.id}.`);
       return item;
     },
-    [session, food, compartments, pushLog, showToast],
+    [session, food, compartments, shelfRules, pushLog, showToast],
   );
 
   /**
@@ -983,17 +1005,37 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const updateShelfLife: AppActions["updateShelfLife"] = useCallback(
-    (categoryId, days) => {
+    (categoryId, days, note) => {
+      const category = CATEGORIES.find((c) => c.id === categoryId);
+      if (!category) return;
+      const next: Record<string, ShelfRuleOverride> = {
+        ...shelfRules,
+        [categoryId]: { id: categoryId, days, note },
+      };
+      setShelfRules(next);
+      saveShelfRules(next);
       pushLog(
         session?.name ?? "Manager",
         "Changed shelf-life rule",
         categoryId,
-        `Demo rule set to ${days} days. Historical records keep their snapshot.`,
+        `Demo rule for ${category.name} set to ${days} days${note ? ` (${note})` : ""}. New records use it; historical records keep their snapshot.`,
       );
-      showToast(`Shelf-life rule for ${categoryId} saved to ${days} days.`);
+      showToast(`Shelf-life rule for ${category.name} saved: ${days} days.`);
     },
-    [session, pushLog, showToast],
+    [shelfRules, session, pushLog, showToast],
   );
+
+  const resetShelfLife: AppActions["resetShelfLife"] = useCallback(() => {
+    setShelfRules({});
+    removeShelfRules();
+    pushLog(
+      session?.name ?? "Manager",
+      "Reset shelf-life rules",
+      "all-categories",
+      "Every edited rule was removed — the §3 demo defaults apply again.",
+    );
+    showToast("All shelf-life rules reset to the demo defaults.");
+  }, [session, pushLog, showToast]);
 
   /**
    * Manager edits a virtual locker compartment (§9 configuration).
@@ -1045,6 +1087,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       toast,
       timezone,
       demoClock,
+      shelfRules,
       navigate,
       signIn,
       signOut,
@@ -1060,6 +1103,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       cancelMassReview,
       markNotificationsRead,
       updateShelfLife,
+      resetShelfLife,
       setToast: showToast,
       setTimezone,
       setDemoClock: setDemoClockAction,
@@ -1077,6 +1121,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       toast,
       timezone,
       demoClock,
+      shelfRules,
       navigate,
       signIn,
       signOut,
@@ -1092,6 +1137,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       cancelMassReview,
       markNotificationsRead,
       updateShelfLife,
+      resetShelfLife,
       showToast,
       setTimezone,
       setDemoClockAction,
